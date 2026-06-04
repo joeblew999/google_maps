@@ -76,6 +76,10 @@ Visible:
 mise run mise:install     # install all tooling + the wasm32 target
 mise run gcloud:setup     # ensure auth + CREATE the GCP project if needed + pin project/account
 mise run secret:google    # ensure GOOGLE_MAPS_API_KEY in fnox (auto-provision restricted key, else paste)
+mise run billing:list     # list GCP billing accounts (+ OPEN status)
+mise run billing:use      # flip the project to a billing account (pin + link if OPEN) — turns Maps APIs on
+mise run billing:status   # show the project's billing account + enabled state
+mise run billing:open     # open the billing console to create/reopen an account
 mise run test             # native tests + wasm worker build gate
 mise run test:cf-smoke    # live wrangler smoke test (opt-in, needs network)
 mise run example:dev      # local wrangler dev for examples/worker (ensures key first)
@@ -103,7 +107,10 @@ Naming derives from the git repo (`<owner>/<repo>`):
   default.
 
 Optional `GCP_BILLING_ACCOUNT` (in fnox) gets linked — **Maps API *calls* require an OPEN billing
-account**, though provisioning/restricting a key does not. Tunables in `mise.toml` [env]:
+account**, though provisioning/restricting a key does not. The `billing:*` tasks make this easy:
+`billing:list` to see accounts, `billing:use` to pin+link one (only links if OPEN — linking a
+**closed** account explicitly disables billing and blocks ALL Maps APIs), `billing:status` to check,
+`billing:open` to create/reopen in the console. Tunables in `mise.toml` [env]:
 `GOOGLE_MAPS_SERVICES` (enabled + restriction targets — must mirror `WASM_FEATURES`),
 `GOOGLE_MAPS_KEY_DISPLAY_NAME`.
 
