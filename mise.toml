@@ -375,6 +375,78 @@ if $probe.exit_code == 0 {
 
 
 # =============================================================================
+# billing:* — Google Cloud billing control (Maps API CALLS need an OPEN account)
+# =============================================================================
+
+[tasks."billing:list"]
+description = "List your GCP billing accounts with OPEN status, so you can pick one for `billing:use`."
+shell = "nu -c"
+run = '^gcloud billing accounts list --format="table(name,displayName,open)"'
+
+[tasks."billing:status"]
+description = "Show the pinned project's billing account + whether billing is actually enabled."
+shell = "nu -c"
+run = '''
+let proj = (^fnox get GCP_PROJECT_ID | complete)
+if $proj.exit_code != 0 {
+    print "No pinned project — run `mise run gcloud:setup` first."
+} else {
+    let p = ($proj.stdout | str trim)
+    print $"Project: ($p)"
+    ^gcloud billing projects describe $p --format "yaml(billingAccountName,billingEnabled)"
+    let pin = (^fnox get GCP_BILLING_ACCOUNT | complete)
+    if $pin.exit_code == 0 { print $"Pinned GCP_BILLING_ACCOUNT: ($pin.stdout | str trim)" } else { print "Pinned GCP_BILLING_ACCOUNT: (none)" }
+}
+'''
+
+[tasks."billing:use"]
+description = "Flip the project to a billing account: pick from a list, pin it in fnox, and link it (only if OPEN). This is the easy 'turn Maps APIs on' button."
+shell = "nu -c"
+run = '''
+print "Your billing accounts:"
+^gcloud billing accounts list --format "table(name,displayName,open)"
+let acct = (input "Billing account ID to use (e.g. 0X0X0X-XXXXXX-XXXXXX): " | str trim)
+if ($acct | is-empty) {
+    print "✗ No account id — aborting."
+} else {
+    let proj = (^fnox get GCP_PROJECT_ID | complete)
+    if $proj.exit_code != 0 {
+        print "✗ No pinned project — run `mise run gcloud:setup` first."
+    } else {
+        let p = ($proj.stdout | str trim)
+        ^fnox set -p keychain GCP_BILLING_ACCOUNT $acct
+        print $"✓ pinned GCP_BILLING_ACCOUNT = ($acct)."
+        let open = (^gcloud billing accounts describe $acct --format "value(open)" | complete)
+        if (($open.stdout | str trim) == "True") {
+            ^gcloud billing projects link $p --billing-account $acct out+err> /dev/null
+            print $"✓ linked + billing ENABLED for ($p). Maps APIs are live."
+        } else {
+            print $"⚠ account ($acct) is CLOSED — pinned but NOT linked; linking a closed account blocks all Maps APIs."
+            print "  Reopen/create one with `mise run billing:open`, then re-run `mise run billing:use`."
+        }
+    }
+}
+'''
+
+[tasks."billing:open"]
+description = "Open the GCP billing console to create or reopen a billing account (the one step the CLI can't do)."
+shell = "nu -c"
+run = 'start "https://console.cloud.google.com/billing"'
+
+[tasks."billing:unlink"]
+hide = true
+description = "Unlink the billing account from the pinned project (e.g. to undo a closed-account link)."
+shell = "nu -c"
+run = '''
+let proj = (^fnox get GCP_PROJECT_ID | complete)
+if $proj.exit_code != 0 { print "No pinned project." } else {
+    ^gcloud billing projects unlink ($proj.stdout | str trim) out+err> /dev/null
+    print "✓ unlinked."
+}
+'''
+
+
+# =============================================================================
 # test:* — native + Cloudflare verification
 # =============================================================================
 
