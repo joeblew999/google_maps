@@ -1,7 +1,7 @@
-# Draft issue for leontoeides/google_maps
+# Upstream issue for leontoeides/google_maps
 
-> Draft only — file manually (or ask Claude to) on https://github.com/leontoeides/google_maps/issues.
-> Title and body below are ready to copy-paste.
+> ✅ FILED 2026-06-04: https://github.com/leontoeides/google_maps/issues/44
+> (Original draft retained below for reference.)
 
 ---
 
