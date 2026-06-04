@@ -1,0 +1,493 @@
+[tools]
+rust = "stable"
+"aqua:nushell/nushell" = "latest"
+
+# Node runtime — required by the npm-based wrangler CLI below.
+node = "24"
+
+# Python — ONLY here to satisfy the Google Cloud SDK's runtime (it needs Python
+# >= 3.10; macOS ships 3.9). Not used for any project code. See CLOUDSDK_PYTHON.
+python = "3.13"
+
+# Google Cloud SDK — used to provision a restricted Google Maps API key on demand
+# (see `secret:google` / `gcloud:login`), so you never touch the Cloud Console.
+# Pinned to the asdf backend; the vfox backend's installer is broken on macOS.
+"asdf:mise-plugins/mise-gcloud" = "latest"
+
+# Cloudflare Workers CLI: dev + deploys for the example worker. Drives worker-build.
+"npm:wrangler" = "4.97.0"
+
+# Rust → wasm32 bundler invoked by wrangler.
+"cargo:worker-build" = "latest"
+
+# Dev-quality tools.
+"cargo:cargo-machete" = "latest"
+
+# Pitchfork: process supervisor for dev daemons.
+"aqua:jdx/pitchfork" = "latest"
+
+[env]
+WASM_TARGET = "wasm32-unknown-unknown"
+RUST_BACKTRACE = "1"
+
+# Force the Google Cloud SDK to use mise's modern Python (its bundled bootstrap
+# fails under macOS's system Python 3.9). Points at the mise python shim, which
+# resolves to the `python` tool declared above when run from this repo.
+CLOUDSDK_PYTHON = "{{env.HOME}}/.local/share/mise/shims/python3"
+
+# Feature set used for the wasm32 / workers-rs port checks. This is the
+# VERIFIED-good set that compiles clean for wasm32 with no native transport
+# (geocoding + directions + Places-New text search). Do NOT add the `places-new`
+# umbrella or autocomplete/place-details — they pull `uuid` v4, which hard-errors
+# on wasm32 without a `js` RNG. Widen only with a confirmed wasm build.
+WASM_FEATURES = "geocoding,directions,places-new-core,places-new-text-search"
+
+# Google Maps Platform service IDs the provisioned API key is enabled for and
+# restricted to. This list MUST mirror WASM_FEATURES above — one service per API
+# the worker can actually call:
+#   geocoding  (forward + reverse) -> geocoding-backend.googleapis.com
+#   directions                     -> directions-backend.googleapis.com
+#   places-new-text-search         -> places.googleapis.com
+# Verified sufficient live: every example route reached its API past the key
+# restriction (only billing gates geocoding/directions). Widen here if you widen
+# WASM_FEATURES (e.g. elevation -> elevation-backend.googleapis.com).
+GOOGLE_MAPS_SERVICES = "geocoding-backend.googleapis.com directions-backend.googleapis.com places.googleapis.com"
+
+# Display name for the provisioned API key + the GCP project (non-secret default).
+GOOGLE_MAPS_KEY_DISPLAY_NAME = "google_maps-rust-fork"
+
+# The deterministic GCP target (project id, account, billing account) is NOT
+# committed — it lives in your keychain via fnox (see fnox.toml: GCP_*). Set it
+# once with `mise run gcloud:setup`, which creates the project if needed.
+
+
+# =============================================================================
+# mise:* — bootstrap
+# =============================================================================
+
+[tasks."mise:install"]
+description = "Install every CLI tool declared above + the wasm32 target"
+shell = "nu -c"
+run = '''
+mise install
+rustup target add wasm32-unknown-unknown
+'''
+
+
+# =============================================================================
+# upstream:* — keep the fork in sync with leontoeides/google_maps
+# =============================================================================
+
+[tasks."upstream:fetch"]
+hide = true
+description = "Fetch upstream (leontoeides/google_maps) refs"
+shell = "nu -c"
+run = "git fetch upstream"
+
+[tasks."upstream:sync"]
+hide = true
+description = "Merge upstream/master into the current branch (review before pushing)"
+shell = "nu -c"
+run = '''
+git fetch upstream
+git merge upstream/master
+'''
+
+
+# =============================================================================
+# cargo:* — Rust dev loop
+# =============================================================================
+
+[tasks."cargo:check"]
+hide = true
+description = "cargo check, native target, default features (upstream sanity)"
+shell = "nu -c"
+run = "cargo check"
+
+[tasks."cargo:check:wasm"]
+hide = true
+description = "cargo check against wasm32 with the port feature set (no native reqwest)"
+shell = "nu -c"
+run = "cargo check --target $env.WASM_TARGET --no-default-features --features $env.WASM_FEATURES"
+
+[tasks."cargo:build:wasm"]
+hide = true
+description = "Build the library for wasm32 (release, port feature set)"
+shell = "nu -c"
+run = "cargo build --target $env.WASM_TARGET --release --no-default-features --features $env.WASM_FEATURES"
+
+[tasks."cargo:test"]
+hide = true
+description = "Run native tests"
+shell = "nu -c"
+run = "cargo test"
+
+[tasks."cargo:lint"]
+hide = true
+description = "Lint with clippy against wasm32, port feature set (deny warnings)"
+shell = "nu -c"
+run = "cargo clippy --target $env.WASM_TARGET --no-default-features --features $env.WASM_FEATURES -- -D warnings"
+
+[tasks."cargo:format"]
+hide = true
+description = "Apply rustfmt to all sources"
+shell = "nu -c"
+run = "cargo fmt --all"
+
+[tasks."cargo:machete"]
+hide = true
+description = "Find unused dependencies"
+shell = "nu -c"
+run = "cargo machete"
+
+[tasks."cargo:pre-commit"]
+hide = true
+description = "Format + wasm lint + native test + machete (run before every commit)"
+depends = ["cargo:format", "cargo:lint", "cargo:test", "cargo:machete"]
+
+
+# =============================================================================
+# cf:* — Cloudflare auth (for the example worker)
+# =============================================================================
+
+[tasks."cf:check"]
+hide = true
+description = "Verify CF auth (whoami)"
+shell = "nu -c"
+run = "fnox exec -- wrangler whoami"
+
+
+# =============================================================================
+# example:* — the worker example (examples/worker) that exercises the transport
+# =============================================================================
+
+[tasks."example:build"]
+hide = true
+description = "Build the example worker to wasm (worker-build, release)"
+dir = "examples/worker"
+shell = "nu -c"
+run = "worker-build --release"
+
+[tasks."example:dev"]
+description = "Run the example worker locally. Ensures the API key exists, writes .dev.vars from fnox, then starts wrangler dev."
+dir = "examples/worker"
+shell = "nu -c"
+depends = ["secret:google"]
+run = '''
+fnox exec -- nu -c '$"GOOGLE_MAPS_API_KEY=($env.GOOGLE_MAPS_API_KEY)" | save -f .dev.vars'
+wrangler dev --local
+'''
+
+[tasks."example:deploy"]
+description = "Deploy the example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
+dir = "examples/worker"
+shell = "nu -c"
+run = "fnox exec -- wrangler deploy"
+
+
+# =============================================================================
+# secret:* — fnox-managed secrets (keychain). See [[feedback_secrets_fnox_mise]]
+# =============================================================================
+
+[tasks."gcloud:setup"]
+description = "Deterministic gcloud target: ensures auth, CREATES the GCP project if needed, and pins project + account into fnox. Idempotent."
+shell = "nu -c"
+run = '''
+# 1. Ensure an authenticated account.
+let active = (^gcloud auth list --filter=status:ACTIVE --format="value(account)" | complete)
+mut account = ($active.stdout | str trim)
+if ($account | is-empty) {
+    print "No active gcloud account — launching browser login…"
+    ^gcloud auth login
+    let a2 = (^gcloud auth list --filter=status:ACTIVE --format="value(account)" | complete)
+    $account = ($a2.stdout | str trim)
+}
+print $"Active account: ($account)"
+
+# 2. Resolve the target project id deterministically. Priority: pinned fnox
+#    GCP_PROJECT_ID, else DERIVED from the git repo as `<owner>-<repo>` (so the
+#    project matches the repo name, like the GOOGLE_MAPS_* secret prefix does).
+let remote = (do --ignore-errors { ^git remote get-url origin } | complete)
+let slug = ($remote.stdout | str trim | str replace --regex '^.*github\.com[:/]' '' | str replace --regex '\.git$' '')
+let owner = ($slug | split row "/" | first)
+# Project DISPLAY name = the repo name (lowercased, '_'->'-'; display names
+# disallow underscores). This is the "project name matches the repo" part.
+let repo_name = ($slug | split row "/" | last | str downcase | str replace --all "_" "-")
+# Project ID may NOT contain the prohibited word "google", so collapse it to 'g'
+# (e.g. google-maps -> gmaps). Owner-prefixed for global uniqueness.
+let id_repo = ($repo_name | str replace --all "google-" "g" | str replace --all "google" "g")
+let derived_id = (if ($slug | str contains "/") { $"($owner)-($id_repo)" } else { $id_repo })
+
+let want = (^fnox get GCP_PROJECT_ID | complete)
+mut project = (if $want.exit_code == 0 { $want.stdout | str trim } else { $derived_id })
+
+if ($project | is-empty) {
+    print "✗ Could not resolve a project id (no fnox pin, no git remote) — set one with `fnox set -p keychain GCP_PROJECT_ID <id>`."
+} else {
+    print $"Target project id: ($project)  [repo-derived default: ($derived_id)]"
+    let pname = (if ($repo_name | is-empty) { $project } else { $repo_name })
+    # 3. Create the project if it does not already exist; keep its display name in sync.
+    mut ok = false
+    let exists = (^gcloud projects describe $project --format="value(projectId)" | complete)
+    if $exists.exit_code == 0 {
+        print $"✓ project ($project) already exists."
+        ^gcloud projects update $project --name $pname out+err> /dev/null
+        print $"  display name set to ($pname)."
+        $ok = true
+    } else {
+        print $"Creating project ($project) \(name: ($pname)\)…"
+        let created = (^gcloud projects create $project --name $pname | complete)
+        if $created.exit_code == 0 {
+            print $"✓ created project ($project)."
+            $ok = true
+        } else {
+            print $"✗ project creation failed \(project ids must be globally unique\):"
+            print ($created.stderr | str trim | lines | first 3 | str join (char nl))
+        }
+    }
+
+    if not $ok {
+        print "✗ Project unavailable — pick a different id and re-run `mise run gcloud:setup`."
+    } else {
+        # 4. Pin project + account into fnox so every later step is deterministic.
+        ^fnox set -p keychain GCP_PROJECT_ID $project
+        if ($account | is-not-empty) { ^fnox set -p keychain GCP_ACCOUNT $account }
+        ^gcloud config set project $project out+err> /dev/null
+        print $"✓ pinned GCP_PROJECT_ID + GCP_ACCOUNT in fnox; gcloud default project = ($project)."
+
+        # 5. Billing: required for Maps API *calls* (not for provisioning the key).
+        let billing = (^fnox get GCP_BILLING_ACCOUNT | complete)
+        if $billing.exit_code == 0 {
+            print "Linking billing account…"
+            ^gcloud billing projects link $project --billing-account ($billing.stdout | str trim)
+        } else {
+            print "ℹ No GCP_BILLING_ACCOUNT pinned. Maps API *calls* need billing; provisioning a key does not."
+            print "  To link later: fnox set -p keychain GCP_BILLING_ACCOUNT <ACCOUNT_ID>  (see: gcloud billing accounts list)"
+        }
+        print "Next: mise run secret:google"
+    }
+}
+'''
+
+[tasks."secret:google"]
+description = "Ensure GOOGLE_MAPS_API_KEY is in fnox. NO-OP if already set; otherwise auto-provisions a restricted key via gcloud (falls back to manual paste)."
+shell = "nu -c"
+run = '''
+# `fnox get` exits 0 when the secret resolves, 1 when absent. `complete` captures
+# stdout/stderr/exit_code WITHOUT printing them, so the value never leaks.
+let probe = (^fnox get GOOGLE_MAPS_API_KEY | complete)
+if $probe.exit_code == 0 {
+    print "✓ GOOGLE_MAPS_API_KEY already set in fnox (keychain) — nothing to do."
+} else {
+    print "GOOGLE_MAPS_API_KEY is not set. Trying automated provisioning via gcloud…"
+    mut key = ""
+
+    if (which gcloud | is-empty) {
+        print "  gcloud not found (run `mise install`)."
+    } else {
+        # Deterministic target: project + account come from fnox (pinned by
+        # `gcloud:setup`), NOT from ambient `gcloud config`.
+        let proj = (^fnox get GCP_PROJECT_ID | complete)
+        if $proj.exit_code != 0 {
+            print "  No pinned GCP project — run `mise run gcloud:setup` first (it creates one if needed)."
+        } else {
+            let project = ($proj.stdout | str trim)
+            let acct = (^fnox get GCP_ACCOUNT | complete)
+            if $acct.exit_code == 0 {
+                $env.CLOUDSDK_CORE_ACCOUNT = ($acct.stdout | str trim)
+            }
+            $env.CLOUDSDK_CORE_PROJECT = $project
+            print $"  Using pinned project: ($project)"
+
+            # The API Keys API must be enabled before we can mint keys, plus the
+            # Maps services the key is restricted to.
+            let services = ($env.GOOGLE_MAPS_SERVICES | split row " " | where {|s| ($s | str trim | is-not-empty)})
+            for s in (["apikeys.googleapis.com"] | append $services) {
+                print $"  Enabling ($s)…"
+                let en = (^gcloud services enable $s --project $project | complete)
+                if $en.exit_code != 0 {
+                    print $"    ⚠ could not enable ($s) \(continuing — Maps APIs usually need billing\): ($en.stderr | str trim | lines | first)"
+                }
+            }
+            # One --api-target per service so the key is RESTRICTED to only the
+            # Maps APIs we use (can't be hijacked for other billing).
+            let api_targets = ($services | each {|s| $"--api-target=service=($s)"})
+            let display = $env.GOOGLE_MAPS_KEY_DISPLAY_NAME
+
+            # Idempotent: reuse an existing key with our display name, else create
+            # one. (`api-keys create` returns an OPERATION; the key resource is in
+            # `response.name`, so we must NOT use plain `name`.)
+            let listed = (^gcloud services api-keys list --project $project --filter $"displayName=($display)" --format "value(name)" | complete)
+            let found = ($listed.stdout | str trim | lines | where {|l| ($l | str trim | is-not-empty)})
+            mut key_name = (if ($found | is-empty) { "" } else { $found | first })
+
+            if ($key_name | is-empty) {
+                print "  Creating restricted API key…"
+                let created = (^gcloud services api-keys create --display-name $display --project $project ...$api_targets --format "value(response.name)" | complete)
+                if $created.exit_code != 0 {
+                    print $"  ✗ key creation failed: ($created.stderr | str trim | lines | first)"
+                } else {
+                    $key_name = ($created.stdout | str trim)
+                }
+            } else {
+                print "  Reusing existing restricted key."
+            }
+
+            if ($key_name | is-not-empty) {
+                let fetched = (^gcloud services api-keys get-key-string $key_name --project $project --format "value(keyString)" | complete)
+                if $fetched.exit_code == 0 {
+                    $key = ($fetched.stdout | str trim)
+                    print "  ✓ provisioned a restricted key via gcloud."
+                } else {
+                    print $"  ✗ fetching key string failed: ($fetched.stderr | str trim | lines | first)"
+                }
+            }
+        }
+    }
+
+    if ($key | is-empty) {
+        print "Falling back to manual entry — create a key at:"
+        print "  https://console.cloud.google.com/google/maps-apis/credentials"
+        $key = (input --suppress-output "Paste your Google Maps API key (hidden): " | str trim)
+        print ""
+    }
+
+    if ($key | is-empty) {
+        print "✗ No key obtained — aborting without changes."
+    } else {
+        # `-p keychain` is mandatory: without it fnox inlines the value as
+        # plaintext into fnox.toml instead of storing it in the keychain.
+        ^fnox set -p keychain GOOGLE_MAPS_API_KEY $key
+        print "✓ Saved GOOGLE_MAPS_API_KEY to keychain via fnox."
+    }
+}
+'''
+
+
+# =============================================================================
+# test:* — native + Cloudflare verification
+# =============================================================================
+
+[tasks."test"]
+description = "Full suite: native unit tests + the Cloudflare (wasm32) build gate"
+depends = ["test:native", "test:cf"]
+
+[tasks."test:native"]
+hide = true
+description = "Native unit tests (default reqwest features). 256 target-agnostic tests covering the shared types/serde/query-building used by BOTH transports."
+shell = "nu -c"
+run = "cargo test"
+
+[tasks."test:cf"]
+hide = true
+description = "Cloudflare build gate: compile the lib AND the example worker for wasm32 with the worker transport (no reqwest/tokio timers)."
+shell = "nu -c"
+run = '''
+cargo build --target $env.WASM_TARGET --no-default-features --features $"worker,($env.WASM_FEATURES)"
+cd examples/worker
+cargo build --target $env.WASM_TARGET --release
+'''
+
+[tasks."test:cf-smoke"]
+description = "Live Cloudflare smoke test: boots `wrangler dev` with a DUMMY key and asserts the worker::Fetch transport round-trips to Google (needs network egress to googleapis.com). Opt-in; not part of `test`."
+dir = "examples/worker"
+shell = "nu -c"
+run = '''
+let log = "/tmp/gmaps-cf-smoke.log"
+"GOOGLE_MAPS_API_KEY=cf-smoke-dummy-key" | save -f .dev.vars
+rm -f $log
+
+# Snapshot existing workerd PIDs so teardown only kills the ones THIS run spawns
+# (wrangler's workerd children outlive `job kill`, so we reap them by diff).
+let workerd_before = (ps | where name =~ "workerd" | get pid)
+
+# Boot wrangler dev in a background job, capturing stdout+stderr.
+let id = (job spawn { ^wrangler dev --local --port 8799 out+err> $log })
+
+# Wait (up to ~90s) for the server to report ready.
+mut ready = false
+for _ in 1..90 {
+    sleep 1sec
+    if ($log | path exists) and ((open $log) | str contains "Ready on") { $ready = true; break }
+}
+
+mut failure = ""
+if not $ready {
+    $failure = "wrangler dev never became ready"
+} else {
+    # GET path: legacy geocoding returns 200 with status REQUEST_DENIED for a bad key.
+    let geo = (^curl -s "http://localhost:8799/geocode?address=Ottawa")
+    # POST path: Places (New) returns HTTP 400 for a bad key.
+    let txt = (^curl -s "http://localhost:8799/text-search?query=pizza")
+    if not ($geo | str contains "request denied") {
+        $failure = $"GET transport unexpected response: ($geo)"
+    } else if not ($txt | str contains "API key not valid") {
+        $failure = $"POST transport unexpected response: ($txt)"
+    }
+}
+
+# Teardown: stop the wrangler job, then reap any workerd children it spawned.
+job kill $id
+let workerd_after = (ps | where name =~ "workerd" | get pid)
+$workerd_after | where {|p| $p not-in $workerd_before} | each {|p| do --ignore-errors { ^kill -9 $p } }
+rm -f .dev.vars
+
+if ($failure | is-not-empty) {
+    print $"✗ ($failure)"
+    print "--- wrangler log tail ---"
+    if ($log | path exists) { open $log | lines | last 20 | str join (char nl) | print }
+    exit 1
+}
+print "✓ Cloudflare transport smoke OK — GET (REQUEST_DENIED) and POST (400) both round-tripped via worker::Fetch."
+'''
+
+[tasks."test:cf-live"]
+description = "Live end-to-end test with the REAL key (from fnox): boots wrangler dev and asserts /text-search returns actual places via worker::Fetch. Needs GOOGLE_MAPS_API_KEY set (mise run secret:google) + network. Opt-in."
+dir = "examples/worker"
+shell = "nu -c"
+run = '''
+let probe = (^fnox get GOOGLE_MAPS_API_KEY | complete)
+if $probe.exit_code != 0 {
+    print "✗ GOOGLE_MAPS_API_KEY not set — run `mise run secret:google` first."
+    exit 1
+}
+let log = "/tmp/gmaps-cf-live.log"
+fnox exec -- nu -c '$"GOOGLE_MAPS_API_KEY=($env.GOOGLE_MAPS_API_KEY)" | save -f .dev.vars'
+rm -f $log
+
+let workerd_before = (ps | where name =~ "workerd" | get pid)
+let id = (job spawn { ^wrangler dev --local --port 8803 out+err> $log })
+
+mut ready = false
+for _ in 1..90 {
+    sleep 1sec
+    if ($log | path exists) and ((open $log) | str contains "Ready on") { $ready = true; break }
+}
+
+mut failure = ""
+mut places = 0
+if not $ready {
+    $failure = "wrangler dev never became ready"
+} else {
+    # Places (New) text search works without an open billing account.
+    let body = (^curl -s "http://localhost:8803/text-search?query=coffee+in+Ottawa")
+    let parsed = (try { $body | from json } catch { {} })
+    $places = ($parsed | get -i response.places | default [] | length)
+    if $places < 1 {
+        $failure = $"text-search returned no places — body: ($body | str substring 0..300)"
+    }
+}
+
+job kill $id
+let workerd_after = (ps | where name =~ "workerd" | get pid)
+$workerd_after | where {|p| $p not-in $workerd_before} | each {|p| do --ignore-errors { ^kill -9 $p } }
+rm -f .dev.vars
+
+if ($failure | is-not-empty) {
+    print $"✗ ($failure)"
+    if ($log | path exists) { open $log | lines | last 15 | str join (char nl) | print }
+    exit 1
+}
+print $"✓ Live worker::Fetch OK — /text-search returned ($places) real places from Google."
+print "  (geocoding/directions need an OPEN billing account; Places works without one.)"
+'''

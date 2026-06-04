@@ -1,0 +1,30 @@
+# Secret resolution for google_maps (joeblew999 workers-rs fork).
+# Repo: github.com/joeblew999/google_maps
+#
+# Values live in the macOS keychain; this file declares the contract. Set with:
+#   fnox set -p keychain GOOGLE_MAPS_API_KEY <key>
+# (NEVER omit `-p keychain` — without it the value is inlined as plaintext.)
+#
+# Per-repo keys are prefixed `GOOGLE_MAPS_` so a keychain dump shows which repo
+# owns them. Shared CF creds (CLOUDFLARE_*) have no prefix — they are
+# deliberately shared across every joeblew999 repo (one CF account).
+
+[providers.keychain]
+type = "keychain"
+service = "fnox"
+
+[secrets]
+# Shared CF creds — keep these names stable across all joeblew999 repos.
+CLOUDFLARE_API_TOKEN  = { provider = "keychain", value = "CLOUDFLARE_API_TOKEN" }
+CLOUDFLARE_ACCOUNT_ID = { provider = "keychain", value = "CLOUDFLARE_ACCOUNT_ID" }
+
+# Per-repo prefixed secret — the Google Maps Platform API key used by examples
+# and integration tests.
+GOOGLE_MAPS_API_KEY= { provider = "keychain", value = "GOOGLE_MAPS_API_KEY" }
+
+# Deterministic gcloud target, pinned by `mise run gcloud:setup`. Not strictly
+# secret, but kept out of committed files so the fork stays generic. fnox exec
+# tolerates these being unset (warns, continues), so they don't block dev.
+GCP_PROJECT_ID= { provider = "keychain", value = "GCP_PROJECT_ID" }
+GCP_ACCOUNT= { provider = "keychain", value = "GCP_ACCOUNT" }
+GCP_BILLING_ACCOUNT= { provider = "keychain", value = "GCP_BILLING_ACCOUNT" }

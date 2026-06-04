@@ -1,0 +1,31 @@
+[package]
+name = "google-maps-worker-example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Example Cloudflare Worker exercising the google_maps `worker` transport (geocode, reverse geocode, directions, Places text search)."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# The fork, built with the Cloudflare Workers transport (no reqwest/tokio timers).
+google_maps = { path = "../..", default-features = false, features = [
+    "worker",
+    "geocoding",
+    "directions",
+    "places-new-core",
+    "places-new-text-search",
+] }
+
+worker        = { version = "0.8", features = ["http"] }
+worker-macros = { version = "0.8", features = ["http"] }
+
+serde_json = "1"
+console_error_panic_hook = "0.1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
