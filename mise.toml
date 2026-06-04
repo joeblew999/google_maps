@@ -267,7 +267,7 @@ if ($project | is-empty) {
                 ^gcloud billing projects link $project --billing-account $ba out+err> /dev/null
                 print "✓ billing linked + enabled."
             } else {
-                print $"⚠ pinned billing account ($ba) is CLOSED — NOT linking (a closed account blocks all Maps APIs)."
+                print $"⚠ pinned billing account ($ba) is CLOSED — NOT linking; a closed account blocks all Maps APIs."
                 print "  Reopen it at https://console.cloud.google.com/billing then re-run `mise run gcloud:setup`."
             }
         } else {
