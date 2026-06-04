@@ -472,7 +472,7 @@ if not $ready {
     # Places (New) text search works without an open billing account.
     let body = (^curl -s "http://localhost:8803/text-search?query=coffee+in+Ottawa")
     let parsed = (try { $body | from json } catch { {} })
-    $places = ($parsed | get -i response.places | default [] | length)
+    $places = ($parsed | get -o response.places | default [] | length)
     if $places < 1 {
         $failure = $"text-search returned no places — body: ($body | str substring 0..300)"
     }
