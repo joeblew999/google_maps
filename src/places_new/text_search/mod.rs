@@ -94,9 +94,9 @@ pub use crate::places_new::text_search::request::{
     RequestBuilder,
 };
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request_with_client;
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::places_new::text_search::request_with_client::{
     RequestWithClient,
     RequestWithClientBuilder,

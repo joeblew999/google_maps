@@ -74,8 +74,15 @@ geo = ["geo-types"]
 polyline = ["dep:polyline"]
 
 # Reqwest Core
-reqwest = ["dep:reqwest", "dep:backon", "dep:futures", "dep:stream_throttle"]
+reqwest = ["dep:reqwest", "dep:backon", "dep:futures", "dep:stream_throttle", "dep:http"]
 enable-reqwest = ["reqwest"]
+
+# Cloudflare Workers (wasm32-unknown-unknown) transport. Mutually alternative to
+# `reqwest`: enable with `--no-default-features --features "worker,<apis>"`. When
+# both are enabled, the `reqwest` transport takes precedence. Provides the same
+# `Client` + `.execute()` API backed by `worker::Fetch` instead of reqwest, with
+# no tokio rate-limiter or backon retry (Workers has no timer).
+worker = ["dep:worker", "dep:http"]
 
 # Reqwest TLS
 reqwest-default-tls = ["reqwest/default-tls"]
@@ -159,6 +166,9 @@ backon = { version = "1.6", optional = true, default-features = false, features 
 futures = { version = "0.3", optional = true }
 reqwest = { version = "0.13", optional = true, default-features = false }
 stream_throttle = { version = "0.5", optional = true }
+
+# Cloudflare Workers transport (wasm32). Enabled by the `worker` feature.
+worker = { version = "0.8", optional = true, features = ["http"] }
 
 # HTTP Middleware
 anyhow = { version = "1.0", optional = true }

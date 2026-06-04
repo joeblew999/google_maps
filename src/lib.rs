@@ -558,6 +558,10 @@
 
 #![forbid(unsafe_code)]
 #![warn(clippy::all, clippy::pedantic, clippy::nursery, clippy::cargo)]
+// Cloudflare Workers are single-threaded and `worker::Fetch` futures are
+// intentionally `!Send`; these nursery lints are false positives on the
+// `worker` transport path. Scoped to the `worker` feature so native is unaffected.
+#![cfg_attr(feature = "worker", allow(clippy::future_not_send, clippy::redundant_pub_crate))]
 #![allow(
 	clippy::trivially_copy_pass_by_ref,
     clippy::cast_precision_loss,

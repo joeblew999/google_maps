@@ -10,6 +10,8 @@ This client currently implements the Directions API, Distance Matrix API, Elevat
 
 <img src="https://www.arkiteq.io/crates/google_maps/banner.jpg" alt="Unofficial Google Maps Platform Client for Rust" width="400"/>
 
+> **Fork note:** This `joeblew999/google_maps` fork also runs on **Cloudflare Workers** (`wasm32`) via an additive `worker` feature that swaps the `reqwest` transport for `worker::Fetch`. The default (native, `reqwest`) build is unchanged. See [Running on Cloudflare Workers](#running-on-cloudflare-workers).
+
 # Installation
 
 Configure the dependencies in your project's `Cargo.toml` file:
@@ -112,6 +114,40 @@ version = "3.9"
 default-features = false
 features = ["directions", "reqwest", "reqwest-rustls-tls", "reqwest-brotli"]
 ```
+
+# Running on Cloudflare Workers
+
+This fork can run inside a [Cloudflare Worker](https://developers.google.com/maps) on the
+`wasm32-unknown-unknown` target. The default `reqwest` transport (native TLS/HTTP, tokio
+timers) cannot compile to wasm, so the `worker` feature provides an alternative transport
+backed by [`worker::Fetch`](https://crates.io/crates/worker). You keep the **same**
+`Client` + `.execute()` API — only the build features change.
+
+Enable `worker` *instead of* `reqwest` (they are mutually alternative; `reqwest` wins if both
+are on):
+
+```toml
+[dependencies.google_maps]
+git = "https://github.com/joeblew999/google_maps"
+default-features = false
+features = ["worker", "geocoding", "directions", "places-new-core", "places-new-text-search"]
+```
+
+```rust
+// Inside a #[event(fetch)] handler — identical to native usage:
+let client = google_maps::Client::new(env.secret("GOOGLE_MAPS_API_KEY")?.to_string());
+let response = client.geocoding().with_address("Ottawa, Canada").execute().await?;
+```
+
+Notes:
+
+* The `worker` path has **no rate limiter and no retry** — Cloudflare Workers have no timer,
+  so the tokio-based `backon`/`stream_throttle` machinery is omitted.
+* Avoid the `places-new` umbrella, `places-new-autocomplete`, and `places-new-place-details`
+  features on wasm: they pull `uuid` v4, which requires a `js` randomness source on wasm32.
+* A complete, runnable Worker (geocode, reverse geocode, directions, Places text search) lives
+  in [`examples/worker/`](examples/worker). With [`mise`](https://mise.jdx.dev) installed:
+  `mise run example:dev` (local `wrangler dev`) or `mise run test:cf` (wasm build gate).
 
 # Release Notes
 

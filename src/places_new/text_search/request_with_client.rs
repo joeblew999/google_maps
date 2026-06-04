@@ -652,7 +652,7 @@ impl crate::traits::EndPoint for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestBody for &RequestWithClient<'_> {
     /// Converts the `RequestWithClient` struct into JSON for submission to Google Maps.
     ///
@@ -666,7 +666,7 @@ impl crate::traits::RequestBody for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::QueryString for &RequestWithClient<'_> {
     /// Builds the URL query string for the HTTP request.
     ///
@@ -681,16 +681,16 @@ impl crate::traits::QueryString for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestHeaders for &RequestWithClient<'_> {
     /// Returns a map of HTTP header names to values.
     ///
     /// These headers will be added to the HTTP request alongside the standard headers like
     /// `X-Goog-Api-Key`.
-    fn request_headers(&self) -> reqwest::header::HeaderMap {
+    fn request_headers(&self) -> http::header::HeaderMap {
         let field_mask = self.field_mask().to_string();
-        let mut headers = reqwest::header::HeaderMap::new();
-        match reqwest::header::HeaderValue::from_str(field_mask.as_str()) {
+        let mut headers = http::header::HeaderMap::new();
+        match http::header::HeaderValue::from_str(field_mask.as_str()) {
             Ok(header_value) => { headers.insert("X-Goog-FieldMask", header_value); },
             Err(error) => tracing::error!("error building request headers: {error}"),
         }
@@ -703,7 +703,7 @@ impl crate::traits::RequestHeaders for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::Validatable for &RequestWithClient<'_> {
     /// Validates the text search request parameters.
     ///

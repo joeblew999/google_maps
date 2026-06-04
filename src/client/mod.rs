@@ -7,6 +7,10 @@
 mod build;
 mod impls;
 
+// Shared helpers for the Cloudflare Workers transport (GET + POST).
+#[cfg(all(feature = "worker", not(feature = "reqwest")))]
+mod worker_transport;
+
 #[cfg(all(
     feature = "reqwest",
     any(
@@ -27,6 +31,22 @@ mod impls;
 ))]
 mod get_request;
 
+// Cloudflare Workers transport: GET. Active only when `worker` is on and
+// `reqwest` is off (reqwest takes precedence when both are enabled).
+#[cfg(all(
+    feature = "worker",
+    not(feature = "reqwest"),
+    any(
+        feature = "directions",
+        feature = "distance_matrix",
+        feature = "elevation",
+        feature = "geocoding",
+        feature = "time_zone",
+        feature = "roads",
+    )
+))]
+mod get_request_worker;
+
 #[cfg(all(feature = "reqwest", feature = "places-new-place-photos"))]
 mod get_binary_request;
 
@@ -38,6 +58,18 @@ mod get_binary_request;
     )
 ))]
 mod post_request;
+
+// Cloudflare Workers transport: POST. Active only when `worker` is on and
+// `reqwest` is off.
+#[cfg(all(
+    feature = "worker",
+    not(feature = "reqwest"),
+    any(
+        feature = "places-new-core",
+        feature = "address_validation",
+    )
+))]
+mod post_request_worker;
 
 #[cfg(feature = "reqwest")]
 mod with_rate;

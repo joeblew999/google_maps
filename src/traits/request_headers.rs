@@ -9,7 +9,7 @@ pub trait RequestHeaders {
     ///
     /// These headers will be added to the HTTP request alongside the standard headers like
     /// `Content-Type`. Defaults to an empty map for APIs that don't need custom headers.
-    fn request_headers(&self) -> reqwest::header::HeaderMap;
+    fn request_headers(&self) -> http::HeaderMap;
 
     /// Returns whether the `X-Goog-Api-Key` header should be set for this request.
     fn send_x_goog_api_key() -> bool;

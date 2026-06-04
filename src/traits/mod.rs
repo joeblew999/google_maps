@@ -20,7 +20,7 @@ pub use crate::traits::request_body::RequestBody;
 pub mod validatable;
 pub use crate::traits::validatable::Validatable;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub mod request_headers;
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::traits::request_headers::RequestHeaders;

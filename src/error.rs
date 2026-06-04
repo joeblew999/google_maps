@@ -118,6 +118,7 @@ pub enum Error {
     /// An HTTP status code returned by the remote server indicates an error.
     /// This represents a successful HTTP connection but an unsuccessful HTTP
     /// request or transaction with the server.
+    #[cfg(feature = "reqwest")]
     #[error("HTTP error {status}: {body:?}")]
     #[diagnostic(
         code(google_maps::http_with_body),
@@ -125,6 +126,25 @@ pub enum Error {
     HttpWithBody {
         status: HttpErrorStatus,
         body: String
+    },
+
+    /// Error originating from the Cloudflare Workers
+    /// [worker](https://crates.io/crates/worker) crate transport (e.g. a failed
+    /// `fetch`). Only present when the `worker` feature is enabled.
+    #[cfg(feature = "worker")]
+    #[error("Cloudflare Worker fetch error: {0}")]
+    #[diagnostic(code(google_maps::worker))]
+    Worker(String),
+
+    /// An HTTP status code returned by the remote server indicates an error,
+    /// observed over the Cloudflare Workers `worker` transport. This represents
+    /// a successful HTTP connection but an unsuccessful HTTP transaction.
+    #[cfg(feature = "worker")]
+    #[error("HTTP error {status}: {body}")]
+    #[diagnostic(code(google_maps::worker_http))]
+    WorkerHttp {
+        status: u16,
+        body: String,
     },
 
     /// Invalid HTTP header value.
@@ -301,6 +321,17 @@ impl ClassifiableError<'_, Self> for Error {
                 } else {
                     ClassifiedError::Permanent(self)
                 }, // HttpWithBody
+
+            #[cfg(feature = "worker")]
+            Self::Worker(_) => ClassifiedError::Permanent(self),
+
+            #[cfg(feature = "worker")]
+            Self::WorkerHttp { status, .. } =>
+                if *status >= 500 {
+                    ClassifiedError::Transient(self)
+                } else {
+                    ClassifiedError::Permanent(self)
+                }, // WorkerHttp
 
             Self::InvalidHeaderValue { .. } => ClassifiedError::Permanent(self),
 
