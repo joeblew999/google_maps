@@ -40,7 +40,19 @@ Port mechanics:
 ## ConnectRPC layer (`crates/connectrpc`) — and the native+Cloudflare plan
 
 `google-maps-connectrpc` wraps the transport in typed Connect RPCs. `MapsServer` holds a
-`google_maps::Client` and impls the generated `MapsService`. Server runtime = the `connectrpc`
+`google_maps::Client` and impls the generated `MapsService`.
+
+**Server is split a file-per-feature** under `src/server/` (mirroring upstream `src/<feature>/`):
+`server/mod.rs` has `MapsServer` + the `MapsService` trait impl, which is a thin dispatch table —
+each method delegates to a free fn in a feature module (`geocoding.rs`, `directions.rs`,
+`distance_matrix.rs`, `elevation.rs`, `time_zone.rs`, `places.rs`). A Rust trait impl can't span
+files, so the dispatch stays central while logic lives per feature. Adding an RPC = new feature module
++ one delegating line in mod.rs. The `exec_await!` macro lives at the bottom of mod.rs (after the `mod`
+decls, so it's not textually in their scope) and is pulled into each feature module via `use
+super::exec_await;`. **The proto stays a single `maps.proto`** — it's the one GUI-facing contract, and
+a protobuf `service` must live in one file anyway.
+
+Server runtime = the `connectrpc`
 crate's `ConnectRpcService` (the right one for serving on CF — same as connyay's examples;
 `connyay/connectrpc-workers` is the *client* transport, not needed for serving). The `connectrpc`
 crate is [`anthropics/connect-rust`](https://github.com/anthropics/connect-rust) — pinned to **0.6.x**
