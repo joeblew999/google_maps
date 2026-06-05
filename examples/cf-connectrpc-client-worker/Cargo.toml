@@ -1,0 +1,24 @@
+[package]
+name = "google-maps-connectrpc-client-worker-example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Example Cloudflare worker that CALLS the maps Connect service via the typed client — binds over RPC, does NOT embed google_maps, so it stays tiny."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# CLIENT role only — note: NO google_maps dependency.
+google-maps-connectrpc = { path = "../../crates/connectrpc", default-features = false, features = ["client"] }
+connectrpc         = { version = "0.6", default-features = false }
+connectrpc-workers = "0.3"
+worker             = { version = "0.8", features = ["http"] }
+worker-macros      = { version = "0.8", features = ["http"] }
+http               = "1"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

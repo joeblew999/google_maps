@@ -10,25 +10,32 @@ publish = false
 [lib]
 crate-type = ["rlib"]
 
-# One proto + one MapsServer, two targets. Pick exactly one:
-#   worker  → google_maps' wasm `worker::Fetch` transport (Cloudflare)
-#   native  → google_maps' `reqwest` transport (native servers, e.g. axum)
-# The only code difference is `.into_send()` on the worker path (its fetch
-# futures are !Send; native futures are already Send).
+# One proto, three roles:
+#   SERVER (embeds google_maps) — pick one transport:
+#     worker  → google_maps' wasm `worker::Fetch` (Cloudflare)
+#     native  → google_maps' `reqwest`           (native, e.g. axum)
+#   CLIENT (does NOT pull google_maps) — for workers/projects that CALL the maps
+#     service over Connect RPC, keeping their deployment tiny:
+#     client  → the generated `MapsServiceClient` + proto types only
 [features]
 default = ["worker"]
-worker = ["dep:worker", "google_maps/worker", "_apis"]
-native = ["google_maps/reqwest", "google_maps/reqwest-default-tls", "_apis"]
-# Shared API surface enabled on both targets.
-_apis = [
+
+# --- server roles (embed google_maps) ---
+worker = ["_server", "dep:worker", "google_maps/worker"]
+native = ["_server", "google_maps/reqwest", "google_maps/reqwest-default-tls"]
+_server = [
+    "dep:google_maps",
     "google_maps/geocoding",
     "google_maps/places-new-core",
     "google_maps/places-new-text-search",
 ]
 
+# --- client role (no google_maps) ---
+client = []
+
 [dependencies]
-# The fork. Transport feature is selected by this crate's worker/native feature.
-google_maps = { path = "../..", default-features = false }
+# Only present for the SERVER roles; the `client` role never pulls it (size win).
+google_maps = { path = "../..", default-features = false, optional = true }
 
 # ConnectRPC runtime = anthropics/connect-rust (the `connectrpc` crate). 0.6.x
 # is the latest; it serves both natively (axum) and on CF Workers from one crate.

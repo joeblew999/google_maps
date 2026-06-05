@@ -164,19 +164,19 @@ run = "fnox exec -- wrangler whoami"
 
 
 # =============================================================================
-# example:* — the simple REST example (examples/rest-worker) that exercises the transport
+# example:* — the simple REST example (examples/cf-rest-worker) that exercises the transport
 # =============================================================================
 
 [tasks."example:build"]
 hide = true
 description = "Build the example worker to wasm (worker-build, release)"
-dir = "examples/rest-worker"
+dir = "examples/cf-rest-worker"
 shell = "nu -c"
 run = "worker-build --release"
 
 [tasks."example:dev"]
 description = "Run the example worker locally. Ensures the API key exists, writes .dev.vars from fnox, then starts wrangler dev."
-dir = "examples/rest-worker"
+dir = "examples/cf-rest-worker"
 shell = "nu -c"
 depends = ["secret:google"]
 run = '''
@@ -186,13 +186,13 @@ wrangler dev --local
 
 [tasks."example:deploy"]
 description = "Deploy the example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
-dir = "examples/rest-worker"
+dir = "examples/cf-rest-worker"
 shell = "nu -c"
 run = "fnox exec -- wrangler deploy"
 
 [tasks."example:connectrpc:dev"]
 description = "Run the ConnectRPC example worker locally (typed Connect RPCs over the maps transport)."
-dir = "examples/connectrpc-worker"
+dir = "examples/cf-connectrpc-worker"
 shell = "nu -c"
 depends = ["secret:google"]
 run = '''
@@ -202,9 +202,22 @@ wrangler dev --local
 
 [tasks."example:connectrpc:deploy"]
 description = "Deploy the ConnectRPC example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
-dir = "examples/connectrpc-worker"
+dir = "examples/cf-connectrpc-worker"
 shell = "nu -c"
 run = "fnox exec -- wrangler deploy"
+
+[tasks."example:connectrpc:client:dev"]
+description = "Run the Cloudflare CLIENT example worker (binds over RPC, no google_maps). Set MAPS_URL to the maps worker (default http://localhost:8787)."
+dir = "examples/cf-connectrpc-client-worker"
+shell = "nu -c"
+run = "wrangler dev --local"
+
+[tasks."example:native:dev"]
+description = "Run the native (axum) ConnectRPC server locally. Ensures the API key, exports it, then serves on 127.0.0.1:8080."
+dir = "examples/native-connectrpc"
+shell = "nu -c"
+depends = ["secret:google"]
+run = "fnox exec -- cargo run --release"
 
 
 # =============================================================================
@@ -489,7 +502,7 @@ shell = "nu -c"
 run = '''
 cargo build --target $env.WASM_TARGET --no-default-features --features $"worker,($env.WASM_FEATURES)"
 cargo build -p google-maps-connectrpc --target $env.WASM_TARGET
-cd examples/rest-worker
+cd examples/cf-rest-worker
 cargo build --target $env.WASM_TARGET --release
 cd ../connectrpc-worker
 cargo build --target $env.WASM_TARGET --release
@@ -497,7 +510,7 @@ cargo build --target $env.WASM_TARGET --release
 
 [tasks."test:cf-smoke"]
 description = "Live Cloudflare smoke test for EVERY API: boots `wrangler dev` with a DUMMY key and asserts each route's worker::Fetch transport reaches Google (denied/billing/invalid — proves round-trip). Needs network. Opt-in; not part of `test`."
-dir = "examples/rest-worker"
+dir = "examples/cf-rest-worker"
 shell = "nu -c"
 run = '''
 let log = "/tmp/gmaps-cf-smoke.log"
@@ -572,7 +585,7 @@ print $"✓ Cloudflare transport smoke OK — all ($routes | length) API routes 
 
 [tasks."test:cf-live"]
 description = "Live end-to-end test with the REAL key (from fnox): boots wrangler dev and asserts /text-search returns actual places via worker::Fetch. Needs GOOGLE_MAPS_API_KEY set (mise run secret:google) + network. Opt-in."
-dir = "examples/rest-worker"
+dir = "examples/cf-rest-worker"
 shell = "nu -c"
 run = '''
 let probe = (^fnox get GOOGLE_MAPS_API_KEY | complete)
@@ -636,7 +649,7 @@ depends = ["test:connectrpc:native", "test:connectrpc:cf"]
 [tasks."test:connectrpc:native"]
 hide = true
 description = "Native axum smoke: run the connectrpc-native server with a dummy key, POST Geocode, assert it reaches Google."
-dir = "examples/connectrpc-native"
+dir = "examples/native-connectrpc"
 shell = "nu -c"
 run = '''
 $env.GOOGLE_MAPS_API_KEY = "cf-smoke-dummy-key"
@@ -665,7 +678,7 @@ print "✓ native ConnectRPC OK — Geocode RPC round-tripped via reqwest (REQUE
 [tasks."test:connectrpc:cf"]
 hide = true
 description = "Cloudflare smoke: wrangler dev the connectrpc-worker with a dummy key, POST Geocode, assert it reaches Google."
-dir = "examples/connectrpc-worker"
+dir = "examples/cf-connectrpc-worker"
 shell = "nu -c"
 run = '''
 "GOOGLE_MAPS_API_KEY=cf-smoke-dummy-key" | save -f .dev.vars
@@ -698,27 +711,31 @@ print "✓ Cloudflare ConnectRPC OK — Geocode RPC round-tripped via worker::Fe
 # =============================================================================
 
 [tasks."example:connectrpc:sizes"]
-description = "Build (release) + report artifact sizes: Cloudflare wasm vs native binary for the ConnectRPC example."
+description = "Build (release) + report artifact sizes — shows the composition win: a client worker that BINDS over RPC (no google_maps) is far smaller than the server worker that embeds it."
 shell = "nu -c"
 run = '''
 print "Building release artifacts (this can take a minute)…"
-cd examples/connectrpc-worker
-worker-build --release out+err> /tmp/gmaps-size-cf.log
-cd ../connectrpc-native
-cargo build --release out+err> /tmp/gmaps-size-native.log
-cd ../..
+cd examples/cf-connectrpc-worker;        worker-build --release out+err> /tmp/gmaps-sz-srv.log; cd ../..
+cd examples/cf-connectrpc-client-worker; worker-build --release out+err> /tmp/gmaps-sz-cli.log; cd ../..
+cd examples/native-connectrpc;           cargo build --release      out+err> /tmp/gmaps-sz-nat.log; cd ../..
 
 mut rows = []
-let wasm = (glob "examples/connectrpc-worker/build/**/*.wasm")
-for f in $wasm {
-    $rows = ($rows | append {runtime: "cloudflare (wasm)", artifact: ($f | path basename), size: (ls $f | get size.0)})
+let cf = [
+    {rt: "cloudflare SERVER (wasm, embeds google_maps)",        g: "examples/cf-connectrpc-worker/build/**/*.wasm"}
+    {rt: "cloudflare CLIENT (wasm, binds over RPC, NO google_maps)", g: "examples/cf-connectrpc-client-worker/build/**/*.wasm"}
+]
+for spec in $cf {
+    for f in (glob $spec.g) {
+        $rows = ($rows | append {runtime: $spec.rt, artifact: ($f | path basename), size: (ls $f | get size.0)})
+    }
 }
-let bin = "examples/connectrpc-native/target/release/google-maps-connectrpc-native-example"
+let bin = "examples/native-connectrpc/target/release/google-maps-connectrpc-native-example"
 if ($bin | path exists) {
-    $rows = ($rows | append {runtime: "native (binary)", artifact: ($bin | path basename), size: (ls $bin | get size.0)})
+    $rows = ($rows | append {runtime: "native SERVER (binary)", artifact: ($bin | path basename), size: (ls $bin | get size.0)})
 }
-print "ConnectRPC example artifact sizes:"
+print "ConnectRPC artifact sizes:"
 $rows | print
+print "→ A consuming worker binds the CLIENT (tiny); only the shared maps worker embeds google_maps."
 '''
 
 
@@ -749,8 +766,26 @@ depends = ["web:gen"]
 run = "pnpm run build"
 
 [tasks."web:dev"]
-description = "Run the demo (vite). Enter your worker URL in the page (e.g. the connectrpc-worker from `example:connectrpc:dev`)."
+description = "Run the demo locally (vite). In another terminal run `mise run example:connectrpc:dev` for the worker."
 dir = "web/demo"
 shell = "nu -c"
 depends = ["web:gen"]
-run = "pnpm run dev"
+run = '''
+print "── Local web demo ─────────────────────────────────────────────"
+print "  Web (this):     http://localhost:5173"
+print "  Maps worker:    http://localhost:8787   ← run `mise run example:connectrpc:dev`"
+print "  (the page's URL box defaults to the worker; change it to hit a deployed one)"
+print "───────────────────────────────────────────────────────────────"
+pnpm run dev
+'''
+
+[tasks."web:deploy"]
+description = "Build + deploy the web demo to Cloudflare (static assets). Prints the deployed URL."
+dir = "web/demo"
+shell = "nu -c"
+depends = ["web:build"]
+run = '''
+let out = (fnox exec -- wrangler deploy | complete)
+print $out.stdout
+$out.stdout | lines | where {|l| ($l | str contains "workers.dev") or ($l | str contains "https://")} | each {|l| print $"🌐 ($l | str trim)"}
+'''

@@ -6,7 +6,7 @@
 [workspace]
 members = ["crates/connectrpc"]
 default-members = ["."]
-exclude = ["examples/rest-worker", "examples/connectrpc-worker", "examples/connectrpc-native"]
+exclude = ["examples/cf-rest-worker", "examples/cf-connectrpc-worker", "examples/native-connectrpc", "examples/cf-connectrpc-client-worker"]
 
 [package]
 name = "google_maps"

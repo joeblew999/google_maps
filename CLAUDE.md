@@ -50,8 +50,8 @@ the fork's fetch futures are `!Send` and connectrpc requires `Send`.
 **Native + Cloudflare from one proto (DONE).** The crate is feature-gated: `worker` (default,
 wasm/`worker::Fetch`) or `native` (`reqwest`). One proto, one `MapsServer`; the only code diff is the
 `exec_await!` macro that adds `.into_send()` on the worker path (its fetch futures are `!Send`; native
-is already `Send`). `examples/connectrpc-native` serves the SAME service via axum
-(`router.into_axum_service()` + `axum::serve`) beside `examples/connectrpc-worker` (CF). `mise run
+is already `Send`). `examples/native-connectrpc` serves the SAME service via axum
+(`router.into_axum_service()` + `axum::serve`) beside `examples/cf-connectrpc-worker` (CF). `mise run
 test:connectrpc` smokes BOTH runtimes with the identical JSON RPC. The middleware crates in
 `cf-connectrpc-middleware` (cedar/metrics/rate-limit/tracing) are NOT added yet (too new); we'll bump
 that repo to connectrpc 0.6 after all Maps APIs are covered over Connect RPC.
@@ -59,7 +59,7 @@ that repo to connectrpc 0.6 after all Maps APIs are covered over Connect RPC.
 ## Workspace & native isolation
 
 Repo is a workspace: `[workspace] members = ["crates/connectrpc"]`, `default-members = ["."]`,
-`exclude = ["examples/rest-worker", "examples/connectrpc-worker"]`. So bare `cargo build`/`test`
+`exclude = ["examples/cf-rest-worker", "examples/cf-connectrpc-worker"]`. So bare `cargo build`/`test`
 build only `google_maps` (the wasm-only ConnectRPC crate would fail natively — `worker` is wasm-only).
 The `[workspace]` block is fork-only — keep it out of any upstream worker-feature PR.
 

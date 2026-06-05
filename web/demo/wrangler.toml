@@ -1,0 +1,6 @@
+name = "google-maps-web-demo"
+compatibility_date = "2026-05-01"
+
+# Pure static site (the built vite app). Cloudflare serves ./dist directly.
+[assets]
+directory = "./dist"

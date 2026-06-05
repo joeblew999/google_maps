@@ -1,0 +1,10 @@
+name = "google-maps-connectrpc-client-worker-example"
+main = "build/worker/shim.mjs"
+compatibility_date = "2026-05-01"
+
+[build]
+command = "cargo install -q \"worker-build@^0.8\" && worker-build --release"
+
+# The shared maps Connect worker this client calls. Override per deploy.
+[vars]
+MAPS_URL = "http://localhost:8787/"

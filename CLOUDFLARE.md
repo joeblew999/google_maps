@@ -27,7 +27,7 @@ All supported APIs run through the Worker transport (3 shared paths: GET, POST, 
 > Legacy `places` is intentionally not worker-enabled (it collides with Places-New and Google
 > deprecated it). Use Places (New).
 
-**REST example:** [`examples/rest-worker/`](examples/rest-worker) — the simple overlay, one HTTP route
+**REST example:** [`examples/cf-rest-worker/`](examples/cf-rest-worker) — the simple overlay, one HTTP route
 per API. This is the minimal "Maps works on Cloudflare" proof.
 
 ```
@@ -50,7 +50,7 @@ TS/React client calls it without type drift.
   the *client* fetch transport for when a Worker needs to *call* a Connect service.
 - Mount it: `Arc::new(MapsServer::new(client)).register(RpcRouter::new())`
 
-**Example:** [`examples/connectrpc-worker/`](examples/connectrpc-worker)
+**Example:** [`examples/cf-connectrpc-worker/`](examples/cf-connectrpc-worker)
 
 ```
 mise run example:connectrpc:dev      # local wrangler dev
@@ -60,7 +60,7 @@ mise run test:connectrpc             # smoke the SAME RPC on BOTH native + Cloud
 
 **Runs natively too.** The crate is feature-gated (`worker` default / `native`) — the *same* proto +
 `MapsServer` serves on Cloudflare (`worker::Fetch`) or natively via axum
-([`examples/connectrpc-native`](examples/connectrpc-native), using connect-rust's
+([`examples/native-connectrpc`](examples/native-connectrpc), using connect-rust's
 `into_axum_service()`). One JSON RPC shape, both runtimes.
 
 > **Isomorphic — one contract, everywhere (nice for devs).** A single `maps.proto` is the source of
@@ -77,6 +77,32 @@ Consumers (e.g. **remy-sport** and other joeblew999 projects) depend on it via C
 ```toml
 google-maps-connectrpc = { git = "https://github.com/joeblew999/google_maps" }
 ```
+
+### Why this keeps deployments small (the composition win)
+
+The point of binding over Connect RPC instead of embedding the Maps client: **only the one shared
+maps worker carries `google_maps`** — every consumer is tiny. Real release sizes (`mise run
+example:connectrpc:sizes`):
+
+| Cloudflare worker (release wasm) | embeds `google_maps`? | size |
+|---|---|---|
+| `cf-connectrpc-client-worker` — a consumer that **binds over RPC** | **no** | **427 KB** |
+| `cf-connectrpc-worker` — the shared maps **server** | yes | 982 KB |
+| `cf-rest-worker` — maps embedded directly (REST) | yes | 1.2 MB |
+| `native-connectrpc` — native server *binary* | yes | 9.7 MB |
+
+A project worker that just *calls* maps is **~427 KB** — under half the server, with `google_maps`
+entirely absent. Scale that across many projects and you save a lot of edge bundle.
+
+### How a dev composes it
+
+- **Rust consumer (Cloudflare or native):** `google-maps-connectrpc` with `features = ["client"]`
+  → `MapsServiceClient` + connect-rust's worker/native client transport. **No `google_maps`.**
+  Example: [`examples/cf-connectrpc-client-worker`](examples/cf-connectrpc-client-worker).
+- **TypeScript consumer (browser or worker):** `@joeblew999/google-maps-connect` →
+  `createMapsClient(url)`. Example: [`web/demo`](web/demo) (browser).
+- **Compose either way:** point any client at the **shared maps worker** directly, or at a **project
+  worker that wraps/extends** it (e.g. adds auth, caches, merges with the project's own RPCs).
 
 ## 3. Web — reusable typed client (simple, no Kumo)
 
