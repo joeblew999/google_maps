@@ -319,6 +319,22 @@ if ($project | is-empty) {
 }
 '''
 
+[tasks."secret:maps-token"]
+description = "Ensure a Maps consumer Bearer token in fnox (MAPS_TOKEN). Generates one if absent. Use it as the worker's MAPS_TOKENS allow-list and each client's MAPS_TOKEN."
+shell = "nu -c"
+run = '''
+let probe = (^fnox get MAPS_TOKEN | complete)
+if $probe.exit_code == 0 {
+    print "✓ MAPS_TOKEN already set in fnox — nothing to do."
+} else {
+    let tok = (random chars --length 40)
+    ^fnox set -p keychain MAPS_TOKEN $tok
+    print "✓ generated + stored MAPS_TOKEN in fnox (keychain)."
+    print "  Deploy: `fnox exec -- wrangler secret put MAPS_TOKENS` (worker allow-list) and"
+    print "          `fnox exec -- wrangler secret put MAPS_TOKEN` (client). Local dev uses 'dev-token'."
+}
+'''
+
 [tasks."secret:google"]
 description = "Ensure GOOGLE_MAPS_API_KEY is in fnox. NO-OP if already set; otherwise auto-provisions a restricted key via gcloud (falls back to manual paste)."
 shell = "nu -c"
@@ -472,6 +488,16 @@ if ($acct | is-empty) {
 description = "Open the GCP billing console to create or reopen a billing account (the one step the CLI can't do)."
 shell = "nu -c"
 run = 'start "https://console.cloud.google.com/billing"'
+
+[tasks."gcloud:quota:open"]
+description = "Open the GCP API quotas console to set per-API DAILY request caps — the hard spend ceiling (see docs/TOKENS.md)."
+shell = "nu -c"
+run = '''
+let p = (^fnox get GCP_PROJECT_ID | complete)
+let proj = (if $p.exit_code == 0 { $p.stdout | str trim } else { "_" })
+start $"https://console.cloud.google.com/google/maps-apis/quotas?project=($proj)"
+print "Set 'Requests per day' on each Maps API to cap spend regardless of tokens."
+'''
 
 [tasks."gcloud:billing:unlink"]
 hide = true
@@ -653,11 +679,12 @@ depends = ["test:connectrpc:native", "test:connectrpc:cf"]
 
 [tasks."test:connectrpc:native"]
 hide = true
-description = "Native axum smoke: run the connectrpc-native server with a dummy key, POST Geocode, assert it reaches Google."
+description = "Native axum smoke: token gate (no token -> unauthenticated) + valid token -> Geocode reaches Google (dummy key -> REQUEST_DENIED)."
 dir = "examples/native-connectrpc"
 shell = "nu -c"
 run = '''
 $env.GOOGLE_MAPS_API_KEY = "cf-smoke-dummy-key"
+$env.MAPS_TOKENS = "smoke-token"
 $env.ADDR = "127.0.0.1:8085"
 let log = "/tmp/gmaps-connectrpc-native.log"
 rm -f $log
@@ -670,14 +697,20 @@ mut failure = ""
 if not $ready {
     $failure = "native server did not start"
 } else {
-    let body = (^curl -s --max-time 30 -X POST "http://127.0.0.1:8085/maps.v1.MapsService/Geocode" -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
-    if not (($body | str downcase) | str contains "denied") { $failure = $"unexpected response: ($body | str substring 0..160)" }
+    let url = "http://127.0.0.1:8085/maps.v1.MapsService/Geocode"
+    let no_tok = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
+    let with_tok = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -H "Authorization: Bearer smoke-token" -d '{"address":"Ottawa"}')
+    if not (($no_tok | str downcase) | str contains "unauthenticated") {
+        $failure = $"token gate did NOT reject untokened request: ($no_tok | str substring 0..160)"
+    } else if not (($with_tok | str downcase) | str contains "denied") {
+        $failure = $"valid-token request did not reach Google: ($with_tok | str substring 0..160)"
+    }
 }
 job kill $id
 do --ignore-errors { ^pkill -f google-maps-connectrpc-native-example }
 rm -f $log
 if ($failure | is-not-empty) { print $"✗ ($failure)"; exit 1 }
-print "✓ native ConnectRPC OK — Geocode RPC round-tripped via reqwest (REQUEST_DENIED with dummy key)."
+print "✓ native ConnectRPC OK — token gate rejects untokened, valid token reaches Google (REQUEST_DENIED)."
 '''
 
 [tasks."test:connectrpc:cf"]

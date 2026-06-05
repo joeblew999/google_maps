@@ -28,3 +28,7 @@ GOOGLE_MAPS_API_KEY= { provider = "keychain", value = "GOOGLE_MAPS_API_KEY" }
 GCP_PROJECT_ID= { provider = "keychain", value = "GCP_PROJECT_ID" }
 GCP_ACCOUNT= { provider = "keychain", value = "GCP_ACCOUNT" }
 GCP_BILLING_ACCOUNT= { provider = "keychain", value = "GCP_BILLING_ACCOUNT" }
+
+# Maps consumer Bearer token — the shared worker's MAPS_TOKENS allow-list + each
+# client's MAPS_TOKEN. Generated/stored by `mise run secret:maps-token`.
+MAPS_TOKEN= { provider = "keychain", value = "MAPS_TOKEN" }

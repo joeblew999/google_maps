@@ -156,10 +156,31 @@ mise run gcloud:billing:status   # current state
   return "enable billing" until one is reopened (`gcloud:billing:open` → `gcloud:billing:use`). The transport,
   key, and restriction are all proven correct.
 
+## Middleware portability (native ↔ Cloudflare)
+
+ConnectRPC middleware is a `tower::Layer` wrapping `ConnectRpcService`. Whether the **same** layer
+runs on both native (axum) and Cloudflare (worker) depends on what it touches — verdict from
+`cf-connectrpc-middleware`'s [MIDDLEWARES.md](https://github.com/joeblew999/cf-connectrpc-middleware/blob/main/MIDDLEWARES.md) catalog:
+
+| Category | Runs on | Examples |
+|---|---|---|
+| **generic** (pure logic, no CF deps) | native + CF, identically | our `TokenAuthLayer`; `connectrpc-cedar` (authz); `connectrpc-tower-kit` |
+| **cf-context** (reads CF runtime data) | both; CF-only fields empty natively | `connectrpc-cf-tracing` (colo/cf-ray) |
+| **cf-binding** (needs a CF binding) | **CF only**; native needs a different impl | `connectrpc-cf-rate-limit` (Rate Limiting), `connectrpc-cf-metrics` (Analytics Engine) |
+
+**Proven:** our `TokenAuthLayer` is *generic* — the identical layer gates both `cf-connectrpc-worker`
+and `native-connectrpc` (`mise run test:connectrpc` exercises both). Rule of thumb: keep middleware a
+pure-logic `tower::Layer` to stay portable; reach for a CF binding only when you want the edge
+feature, and give it a native fallback. (`axum::middleware::from_fn` is axum-only — won't compile to wasm.)
+
 ## Protecting the shared key (tokens, rate limits, quota)
 
-The shared maps worker holds one restricted Google key, so consumer access must be gated to avoid
-burning spend. Recommended design (defense in depth): **GCP per-key daily quota** (hard ceiling) +
-**Bearer token per consumer** + **Cloudflare Rate Limiting** + metrics; browsers go through a
-project worker (never hold a token). Full design + phasing: **[docs/TOKENS.md](docs/TOKENS.md)**.
-Not implemented yet — billing + key restriction are the current guardrails.
+The shared maps worker holds one restricted Google key, so consumer access is gated. Design (defense
+in depth): **GCP per-key daily quota** (hard ceiling) + **Bearer token per consumer** + **Cloudflare
+Rate Limiting** + metrics; browsers go through a project worker (never hold a token). Full design:
+**[docs/TOKENS.md](docs/TOKENS.md)**.
+
+**Implemented:** the **token gate** — `TokenAuthLayer` (reusable, generic) on the maps worker. It
+checks `Authorization: Bearer <token>` against the `MAPS_TOKENS` allow-list (CF secret); empty =
+deny-all. `mise run secret:maps-token` issues a token; clients send it (`MAPS_TOKEN`). Hard ceiling:
+`mise run gcloud:quota:open` → set per-API daily caps. **Remaining:** CF rate-limit binding, metrics.

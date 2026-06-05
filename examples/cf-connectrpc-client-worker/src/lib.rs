@@ -6,7 +6,9 @@
 //! shared maps worker instead of each embedding the whole Maps client.
 //!
 //! `MAPS_URL` (var) points at the maps Connect worker (the shared one, or a
-//! project worker that composes it). `GET /?address=Ottawa`.
+//! project worker that composes it). `MAPS_TOKEN` (secret) is this consumer's
+//! Bearer token, sent on every call so the shared worker's token gate accepts it.
+//! `GET /?address=Ottawa`.
 
 use connectrpc::client::ClientConfig;
 use connectrpc_workers::FetchTransport;
@@ -28,7 +30,10 @@ async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
         Ok(t) => t,
         Err(e) => return Response::error(format!("transport: {e}"), 500),
     };
-    let client = MapsServiceClient::new(transport, ClientConfig::new(uri));
+    // Attach this consumer's Bearer token so the shared worker's gate accepts us.
+    let token = env.var("MAPS_TOKEN").map(|v| v.to_string()).unwrap_or_default();
+    let config = ClientConfig::new(uri).with_default_header("authorization", format!("Bearer {token}"));
+    let client = MapsServiceClient::new(transport, config);
 
     let address = req
         .url()

@@ -9,7 +9,8 @@
 use std::sync::Arc;
 
 use connectrpc::Router as RpcRouter;
-use google_maps_connectrpc::{MapsServer, MapsServiceExt};
+use google_maps_connectrpc::{MapsServer, MapsServiceExt, TokenAuthLayer};
+use tower::Layer;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -19,10 +20,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Identical to the worker: build the service, register it on a Connect router.
     let router = Arc::new(MapsServer::new(client)).register(RpcRouter::new());
 
+    // The SAME generic token gate as the Cloudflare worker (proves it's portable).
+    let tokens = std::env::var("MAPS_TOKENS").unwrap_or_default();
+    let guarded = TokenAuthLayer::from_list(&tokens).layer(router.into_axum_service());
+
     // Native difference: serve the Connect router via axum instead of worker fetch.
     let app = axum::Router::new()
         .route("/health", axum::routing::get(|| async { "ok" }))
-        .fallback_service(router.into_axum_service());
+        .fallback_service(guarded);
 
     let addr = std::env::var("ADDR").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
     let listener = tokio::net::TcpListener::bind(&addr).await?;
