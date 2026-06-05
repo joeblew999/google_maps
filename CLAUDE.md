@@ -82,6 +82,8 @@ The `[workspace]` block is fork-only — keep it out of any upstream worker-feat
 ## Dev cheatsheet
 
 `mise tasks` shows the user-facing surface; dev-loop tasks are `hide = true` (`mise tasks --hidden`).
+- `mise run proto:gen` — regenerate Rust (build.rs) **and** TS (buf) from `maps.proto` in one shot
+- `mise run proto:lint` — `buf lint` the proto contract (STANDARD: unique req/resp per RPC)
 - `cargo test` — native unit tests (library only)
 - `mise run test` — native tests + wasm build gate
 - `mise run test:cf` / `test:cf-smoke` / `test:cf-live` — wasm build gate / dummy-key smoke / real-key live
