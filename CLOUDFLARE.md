@@ -63,6 +63,16 @@ mise run test:connectrpc             # smoke the SAME RPC on BOTH native + Cloud
 ([`examples/connectrpc-native`](examples/connectrpc-native), using connect-rust's
 `into_axum_service()`). One JSON RPC shape, both runtimes.
 
+> **Isomorphic — one contract, everywhere (nice for devs).** A single `maps.proto` is the source of
+> truth for *every* side:
+> - **Server:** the same `MapsServer` runs native (axum) **and** on Cloudflare (worker) — no rewrite.
+> - **Client:** generate from the same proto for the browser (`@connectrpc/connect-web`), native Rust,
+>   or another Worker (connect-rust's worker client transport).
+> - **Tests:** the identical JSON RPC (`POST /maps.v1.MapsService/Geocode`) hits native *or* edge — so
+>   `mise run test:connectrpc` smoke-tests both with one shape.
+>
+> You write against one typed interface; it works server↔client and native↔edge↔browser, with no drift.
+
 Consumers (e.g. **remy-sport** and other joeblew999 projects) depend on it via Cargo:
 ```toml
 google-maps-connectrpc = { git = "https://github.com/joeblew999/google_maps" }
@@ -89,10 +99,10 @@ mise run secret:google    # provision a restricted key via gcloud (or paste one)
 
 **Billing:** Maps API *calls* need an **OPEN** billing account (provisioning a key does not).
 ```
-mise run billing:list     # accounts + OPEN status
-mise run billing:open     # console to create/reopen an account
-mise run billing:use      # pin + link one (only links if OPEN; a closed account blocks all Maps APIs)
-mise run billing:status   # current state
+mise run gcloud:billing:list     # accounts + OPEN status
+mise run gcloud:billing:open     # console to create/reopen an account
+mise run gcloud:billing:use      # pin + link one (only links if OPEN; a closed account blocks all Maps APIs)
+mise run gcloud:billing:status   # current state
 ```
 
 ## Status (2026-06-04)
@@ -100,5 +110,5 @@ mise run billing:status   # current state
 - Native build + 256 unit tests: green. All wasm builds (lib, ConnectRPC crate, both example workers): green.
 - Live smoke: all REST API routes round-trip via `worker::Fetch`; Places text search returned real data.
 - **Blocker for live data:** this account's billing accounts are all closed — geocoding/directions
-  return "enable billing" until one is reopened (`billing:open` → `billing:use`). The transport,
+  return "enable billing" until one is reopened (`gcloud:billing:open` → `gcloud:billing:use`). The transport,
   key, and restriction are all proven correct.
