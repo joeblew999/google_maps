@@ -55,7 +55,13 @@ TS/React client calls it without type drift.
 ```
 mise run example:connectrpc:dev      # local wrangler dev
 mise run example:connectrpc:deploy   # deploy
+mise run test:connectrpc             # smoke the SAME RPC on BOTH native + Cloudflare
 ```
+
+**Runs natively too.** The crate is feature-gated (`worker` default / `native`) — the *same* proto +
+`MapsServer` serves on Cloudflare (`worker::Fetch`) or natively via axum
+([`examples/connectrpc-native`](examples/connectrpc-native), using connect-rust's
+`into_axum_service()`). One JSON RPC shape, both runtimes.
 
 Consumers (e.g. **remy-sport** and other joeblew999 projects) depend on it via Cargo:
 ```toml

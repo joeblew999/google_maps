@@ -47,15 +47,14 @@ crate is [`anthropics/connect-rust`](https://github.com/anthropics/connect-rust)
 (latest; serves both native via `axum` and CF Workers from one crate). Uses `.into_send()` because
 the fork's fetch futures are `!Send` and connectrpc requires `Send`.
 
-**Native + Cloudflare from one proto (planned).** `ConnectRpcService` is a `tower::Service`, so the
-same router/service serves natively (axum/hyper, via `into_axum_service()`) or on CF (worker fetch).
-The `MapsServer` logic is identical; only two things differ per target:
-1. which `google_maps` transport the `Client` uses — `worker` (wasm) vs `reqwest` (native);
-2. `.into_send()` is needed only on the worker path (native futures are already `Send`).
-
-Intended layout: feature-gate the crate (`worker` default / `native`), keep one proto + one service
-impl, add a `examples/connectrpc-native` (axum) beside `examples/connectrpc-worker`. The middleware
-crates in `cf-connectrpc-middleware` (cedar/metrics/rate-limit/tracing) are NOT added yet (too new).
+**Native + Cloudflare from one proto (DONE).** The crate is feature-gated: `worker` (default,
+wasm/`worker::Fetch`) or `native` (`reqwest`). One proto, one `MapsServer`; the only code diff is the
+`exec_await!` macro that adds `.into_send()` on the worker path (its fetch futures are `!Send`; native
+is already `Send`). `examples/connectrpc-native` serves the SAME service via axum
+(`router.into_axum_service()` + `axum::serve`) beside `examples/connectrpc-worker` (CF). `mise run
+test:connectrpc` smokes BOTH runtimes with the identical JSON RPC. The middleware crates in
+`cf-connectrpc-middleware` (cedar/metrics/rate-limit/tracing) are NOT added yet (too new); we'll bump
+that repo to connectrpc 0.6 after all Maps APIs are covered over Connect RPC.
 
 ## Workspace & native isolation
 
@@ -101,9 +100,10 @@ The `[workspace]` block is fork-only — keep it out of any upstream worker-feat
 - [x] Worker transport for all APIs + per-API REST example + live smoke
 - [x] Turnkey gcloud key provisioning + billing tasks (fnox)
 - [x] Reusable `google-maps-connectrpc` crate + Cloudflare example
-- [ ] **Native + Cloudflare dual-target for the ConnectRPC crate** (feature-gate; add `connectrpc-native` axum example)
+- [x] **Native + Cloudflare dual-target for the ConnectRPC crate** (feature-gated; `connectrpc-native` axum example; `test:connectrpc` smokes both)
+- [ ] Expand the proto to cover **all** Maps APIs over Connect RPC (directions, reverse geocode, distance matrix, roads, address validation, places-new …)
 - [ ] **Cloudflare Kumo + React** web client (generated TS from `maps.proto`, `web-kumo/`)
-- [ ] Expand the proto to cover more APIs (directions, reverse geocode, distance matrix, …)
+- [ ] Bump `cf-connectrpc-middleware` to connectrpc 0.6 (AFTER all Maps APIs covered over Connect RPC)
 - [ ] (later) wire `cf-connectrpc-middleware` layers (cedar/tracing/…) once they stabilise
 - [ ] Reopen a billing account to unblock live data for all APIs
 - Consumers waiting on this: **remy-sport** + other joeblew999 projects.
