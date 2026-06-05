@@ -22,3 +22,5 @@ on("reverse", () =>
 on("directions", () =>
   client().directions({ origin: $("origin").value, destination: $("destination").value }));
 on("textsearch", () => client().textSearch({ query: $("query").value }));
+on("elevation", () => client().elevation({ latitude: +$("elat").value, longitude: +$("elng").value }));
+on("timezone", () => client().timeZone({ latitude: +$("tzlat").value, longitude: +$("tzlng").value }));

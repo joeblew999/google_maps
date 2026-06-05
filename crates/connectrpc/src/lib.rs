@@ -28,8 +28,10 @@ pub mod proto {
 // The typed CLIENT + message types — available in every role, no `google_maps`
 // dependency (so callers stay tiny — they bind over RPC instead of embedding).
 pub use crate::proto::maps::v1::{
-    DirectionsRequest, DirectionsResponse, GeocodeRequest, GeocodeResponse, MapsServiceClient,
-    ReverseGeocodeRequest, ReverseGeocodeResponse, Route, TextSearchRequest, TextSearchResponse,
+    DirectionsRequest, DirectionsResponse, ElevationRequest, ElevationResponse, ElevationResult,
+    GeocodeRequest, GeocodeResponse, MapsServiceClient, ReverseGeocodeRequest,
+    ReverseGeocodeResponse, Route, TextSearchRequest, TextSearchResponse, TimeZoneRequest,
+    TimeZoneResponse,
 };
 
 // The SERVER lives behind `_server` (enabled by `worker`/`native`) — it's the
@@ -52,9 +54,10 @@ mod server {
     use worker::send::IntoSendFuture;
 
     use crate::proto::maps::v1::{
-        DirectionsResponse, GeoResult, GeocodeResponse, MapsService, OwnedDirectionsRequestView,
-        OwnedGeocodeRequestView, OwnedReverseGeocodeRequestView, OwnedTextSearchRequestView,
-        Place as PbPlace, ReverseGeocodeResponse, Route, TextSearchResponse,
+        DirectionsResponse, ElevationResponse, ElevationResult, GeoResult, GeocodeResponse,
+        MapsService, OwnedDirectionsRequestView, OwnedElevationRequestView, OwnedGeocodeRequestView,
+        OwnedReverseGeocodeRequestView, OwnedTextSearchRequestView, OwnedTimeZoneRequestView,
+        Place as PbPlace, ReverseGeocodeResponse, Route, TextSearchResponse, TimeZoneResponse,
     };
 
     // The only per-target difference: Cloudflare's `worker::Fetch` futures are
@@ -172,6 +175,54 @@ mod server {
 
             Ok(Response::new(DirectionsResponse {
                 routes,
+                status: format!("{:?}", response.status),
+                ..Default::default()
+            }))
+        }
+
+        async fn elevation(
+            &self,
+            _ctx: RequestContext,
+            request: OwnedElevationRequestView,
+        ) -> ServiceResult<ElevationResponse> {
+            let latlng = LatLng::try_from_f64(request.latitude, request.longitude)
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+            let response = exec_await!(self.client.elevation().for_positional_request(latlng).execute())
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            let results = response
+                .results
+                .iter()
+                .map(|p| ElevationResult {
+                    elevation: p.elevation,
+                    latitude: p.location.lat.to_f64().unwrap_or_default(),
+                    longitude: p.location.lng.to_f64().unwrap_or_default(),
+                    resolution: p.resolution.unwrap_or_default(),
+                    ..Default::default()
+                })
+                .collect();
+
+            Ok(Response::new(ElevationResponse { results, ..Default::default() }))
+        }
+
+        async fn time_zone(
+            &self,
+            _ctx: RequestContext,
+            request: OwnedTimeZoneRequestView,
+        ) -> ServiceResult<TimeZoneResponse> {
+            let latlng = LatLng::try_from_f64(request.latitude, request.longitude)
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+            let secs = if request.timestamp_seconds > 0 { request.timestamp_seconds } else { 1_700_000_000 };
+            let ts = chrono::DateTime::from_timestamp(secs, 0)
+                .ok_or_else(|| ConnectError::internal("invalid timestamp"))?;
+            let response = exec_await!(self.client.time_zone(latlng, ts).execute())
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            Ok(Response::new(TimeZoneResponse {
+                time_zone_id: response.time_zone_id.map(|tz| tz.name().to_string()).unwrap_or_default(),
+                time_zone_name: response.time_zone_name.clone().unwrap_or_default(),
+                raw_offset_seconds: response.raw_offset.unwrap_or_default(),
+                dst_offset_seconds: response.dst_offset.unwrap_or_default(),
                 status: format!("{:?}", response.status),
                 ..Default::default()
             }))

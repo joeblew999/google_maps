@@ -16,6 +16,12 @@ service MapsService {
   // Directions: origin + destination -> route summaries (distance/duration).
   rpc Directions(DirectionsRequest) returns (DirectionsResponse);
 
+  // Elevation: coordinates -> elevation (metres).
+  rpc Elevation(ElevationRequest) returns (ElevationResponse);
+
+  // Time zone: coordinates (+ optional unix timestamp) -> tz id/name/offsets.
+  rpc TimeZone(TimeZoneRequest) returns (TimeZoneResponse);
+
   // Places (New) Text Search: free-text query -> matching places.
   rpc TextSearch(TextSearchRequest) returns (TextSearchResponse);
 }
@@ -62,6 +68,36 @@ message Route {
   string duration = 3;       // e.g. "4 hours 30 mins" (first leg)
   string start_address = 4;
   string end_address = 5;
+}
+
+message ElevationRequest {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message ElevationResponse {
+  repeated ElevationResult results = 1;
+}
+
+message ElevationResult {
+  double elevation = 1;   // metres above sea level
+  double latitude = 2;
+  double longitude = 3;
+  double resolution = 4;  // metres between sample points
+}
+
+message TimeZoneRequest {
+  double latitude = 1;
+  double longitude = 2;
+  int64 timestamp_seconds = 3;  // unix seconds; <=0 uses a server default
+}
+
+message TimeZoneResponse {
+  string time_zone_id = 1;       // e.g. "America/Toronto"
+  string time_zone_name = 2;     // e.g. "Eastern Daylight Time"
+  int32 raw_offset_seconds = 3;
+  int32 dst_offset_seconds = 4;
+  string status = 5;
 }
 
 message TextSearchRequest {

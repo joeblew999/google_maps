@@ -25,8 +25,11 @@ worker = ["_server", "dep:worker", "google_maps/worker"]
 native = ["_server", "google_maps/reqwest", "google_maps/reqwest-default-tls"]
 _server = [
     "dep:google_maps",
+    "dep:chrono",
     "google_maps/geocoding",
     "google_maps/directions",
+    "google_maps/elevation",
+    "google_maps/time_zone",
     "google_maps/places-new-core",
     "google_maps/places-new-text-search",
 ]
@@ -54,6 +57,9 @@ bytes          = "1.5"
 
 # Decimal → f64 for coordinate conversion.
 rust_decimal = { version = "1", default-features = false }
+
+# Server-only: build the timestamp for the Time Zone RPC.
+chrono = { version = "0.4", optional = true, default-features = false }
 
 # The buffa `json` codegen emits serde derives on the generated messages.
 serde      = { version = "1", features = ["derive"] }
