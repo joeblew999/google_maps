@@ -10,23 +10,33 @@ publish = false
 [lib]
 crate-type = ["rlib"]
 
+# One proto + one MapsServer, two targets. Pick exactly one:
+#   worker  → google_maps' wasm `worker::Fetch` transport (Cloudflare)
+#   native  → google_maps' `reqwest` transport (native servers, e.g. axum)
+# The only code difference is `.into_send()` on the worker path (its fetch
+# futures are !Send; native futures are already Send).
+[features]
+default = ["worker"]
+worker = ["dep:worker", "google_maps/worker", "_apis"]
+native = ["google_maps/reqwest", "google_maps/reqwest-default-tls", "_apis"]
+# Shared API surface enabled on both targets.
+_apis = [
+    "google_maps/geocoding",
+    "google_maps/places-new-core",
+    "google_maps/places-new-text-search",
+]
+
 [dependencies]
-# The fork, built with the Cloudflare Workers transport.
-google_maps = { path = "../..", default-features = false, features = [
-    "worker",
-    "geocoding",
-    "places-new-core",
-    "places-new-text-search",
-] }
+# The fork. Transport feature is selected by this crate's worker/native feature.
+google_maps = { path = "../..", default-features = false }
 
 # ConnectRPC runtime = anthropics/connect-rust (the `connectrpc` crate). 0.6.x
 # is the latest; it serves both natively (axum) and on CF Workers from one crate.
 connectrpc = { version = "0.6", default-features = false }
 buffa      = { version = "0.6", features = ["json"] }
 
-# Workers runtime (for `worker::send::IntoSendFuture` — google_maps' fetch
-# futures are !Send, and connectrpc requires Send).
-worker = { version = "0.8", features = ["http"] }
+# Workers runtime (only on the `worker` target — for `IntoSendFuture`).
+worker = { version = "0.8", features = ["http"], optional = true }
 
 # HTTP plumbing referenced by the generated connectrpc service code.
 http           = "1"

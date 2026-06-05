@@ -1,0 +1,17 @@
+[package]
+name = "google-maps-connectrpc-native-example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Native axum server mounting google-maps-connectrpc — the SAME proto + MapsServer as the Cloudflare worker example, just a different runtime."
+
+[dependencies]
+# Same crate, native feature (reqwest transport instead of worker::Fetch).
+google-maps-connectrpc = { path = "../../crates/connectrpc", default-features = false, features = ["native"] }
+google_maps = { path = "../..", default-features = false, features = [
+    "reqwest", "reqwest-default-tls", "geocoding", "places-new-core", "places-new-text-search",
+] }
+
+connectrpc = { version = "0.6", features = ["axum"] }
+axum       = "0.8"
+tokio      = { version = "1", features = ["full"] }

@@ -618,3 +618,72 @@ if ($failure | is-not-empty) {
 print $"✓ Live worker::Fetch OK — /text-search returned ($places) real places from Google."
 print "  (geocoding/directions need an OPEN billing account; Places works without one.)"
 '''
+
+
+# =============================================================================
+# test:connectrpc:* — smoke the SAME Connect RPC on both runtimes (native + CF).
+# Identical JSON POST to /maps.v1.MapsService/Geocode; dummy key → each must
+# reach Google (REQUEST_DENIED), proving the RPC round-trips on that runtime.
+# =============================================================================
+
+[tasks."test:connectrpc"]
+description = "Smoke the ConnectRPC Maps service on BOTH runtimes (native axum + Cloudflare worker)."
+depends = ["test:connectrpc:native", "test:connectrpc:cf"]
+
+[tasks."test:connectrpc:native"]
+hide = true
+description = "Native axum smoke: run the connectrpc-native server with a dummy key, POST Geocode, assert it reaches Google."
+dir = "examples/connectrpc-native"
+shell = "nu -c"
+run = '''
+$env.GOOGLE_MAPS_API_KEY = "cf-smoke-dummy-key"
+$env.ADDR = "127.0.0.1:8085"
+let log = "/tmp/gmaps-connectrpc-native.log"
+rm -f $log
+cargo build --quiet
+let bin = "./target/debug/google-maps-connectrpc-native-example"
+let id = (job spawn { ^$bin out+err> $log })
+mut ready = false
+for _ in 1..40 { sleep 1sec; if ($log | path exists) and ((open $log) | str contains "listening") { $ready = true; break } }
+mut failure = ""
+if not $ready {
+    $failure = "native server did not start"
+} else {
+    let body = (^curl -s --max-time 30 -X POST "http://127.0.0.1:8085/maps.v1.MapsService/Geocode" -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
+    if not (($body | str downcase) | str contains "denied") { $failure = $"unexpected response: ($body | str substring 0..160)" }
+}
+job kill $id
+do --ignore-errors { ^pkill -f google-maps-connectrpc-native-example }
+rm -f $log
+if ($failure | is-not-empty) { print $"✗ ($failure)"; exit 1 }
+print "✓ native ConnectRPC OK — Geocode RPC round-tripped via reqwest (REQUEST_DENIED with dummy key)."
+'''
+
+[tasks."test:connectrpc:cf"]
+hide = true
+description = "Cloudflare smoke: wrangler dev the connectrpc-worker with a dummy key, POST Geocode, assert it reaches Google."
+dir = "examples/connectrpc-worker"
+shell = "nu -c"
+run = '''
+"GOOGLE_MAPS_API_KEY=cf-smoke-dummy-key" | save -f .dev.vars
+let log = "/tmp/gmaps-connectrpc-cf.log"
+rm -f $log
+let workerd_before = (ps | where name =~ "workerd" | get pid)
+let id = (job spawn { ^wrangler dev --local --port 8806 out+err> $log })
+mut ready = false
+for _ in 1..90 { sleep 1sec; if ($log | path exists) and ((open $log) | str contains "Ready on") { $ready = true; break } }
+mut failure = ""
+if not $ready {
+    $failure = "wrangler dev never became ready"
+} else {
+    let body = (^curl -s --max-time 30 -X POST "http://localhost:8806/maps.v1.MapsService/Geocode" -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
+    if not (($body | str downcase) | str contains "denied") { $failure = $"unexpected response: ($body | str substring 0..160)" }
+}
+job kill $id
+let workerd_after = (ps | where name =~ "workerd" | get pid)
+$workerd_after | where {|p| $p not-in $workerd_before} | each {|p| do --ignore-errors { ^kill -9 $p } }
+do --ignore-errors { ^pkill -f "localhost:8806" }
+rm -f .dev.vars
+if ($failure | is-not-empty) { print $"✗ ($failure)"; exit 1 }
+print "✓ Cloudflare ConnectRPC OK — Geocode RPC round-tripped via worker::Fetch (REQUEST_DENIED with dummy key)."
+'''

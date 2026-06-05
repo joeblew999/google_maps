@@ -20,7 +20,21 @@ use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
 use google_maps::Client;
 use google_maps::places_new::FieldMask;
 use rust_decimal::prelude::ToPrimitive;
+
+#[cfg(feature = "worker")]
 use worker::send::IntoSendFuture;
+
+// The only per-target difference: on Cloudflare the `worker::Fetch` futures are
+// `!Send`, so they need `.into_send()` before `.await`; native (reqwest) futures
+// are already `Send`. This macro hides that so the RPC bodies are identical.
+#[cfg(feature = "worker")]
+macro_rules! exec_await {
+    ($e:expr) => {{ $e.into_send().await }};
+}
+#[cfg(not(feature = "worker"))]
+macro_rules! exec_await {
+    ($e:expr) => {{ $e.await }};
+}
 
 /// Generated protobuf types + the `MapsService` trait/ext (from `build.rs`).
 pub mod proto {
@@ -53,14 +67,12 @@ impl MapsService for MapsServer {
         _ctx: RequestContext,
         request: OwnedGeocodeRequestView,
     ) -> ServiceResult<GeocodeResponse> {
-        let response = self
+        let response = exec_await!(self
             .client
             .geocoding()
             .with_address(request.address)
-            .execute()
-            .into_send()
-            .await
-            .map_err(|error| ConnectError::internal(error.to_string()))?;
+            .execute())
+        .map_err(|error| ConnectError::internal(error.to_string()))?;
 
         let results = response
             .results
@@ -85,14 +97,12 @@ impl MapsService for MapsServer {
         _ctx: RequestContext,
         request: OwnedTextSearchRequestView,
     ) -> ServiceResult<TextSearchResponse> {
-        let response = self
+        let response = exec_await!(self
             .client
             .text_search(request.query)
             .field_mask(FieldMask::All)
-            .execute()
-            .into_send()
-            .await
-            .map_err(|error| ConnectError::internal(error.to_string()))?;
+            .execute())
+        .map_err(|error| ConnectError::internal(error.to_string()))?;
 
         let places = response
             .response()
