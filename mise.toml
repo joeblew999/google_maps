@@ -23,6 +23,9 @@ python = "3.13"
 # Rust → wasm32 bundler invoked by wrangler.
 "cargo:worker-build" = "latest"
 
+# buf — proto lint + TS codegen for the ConnectRPC layer.
+"aqua:bufbuild/buf" = "latest"
+
 # protoc — required by connectrpc-build to compile the ConnectRPC layer's .proto.
 "aqua:protocolbuffers/protobuf/protoc" = "latest"
 
@@ -756,7 +759,7 @@ run = "pnpm install"
 description = "Generate the TypeScript Connect client from crates/connectrpc/proto/maps.proto (buf)."
 dir = "web/packages/connect"
 shell = "nu -c"
-run = "pnpm run generate"
+run = "buf generate"
 
 [tasks."web:build"]
 description = "Build the reusable client + the vanilla demo (regenerates the client first)."
@@ -788,4 +791,27 @@ run = '''
 let out = (fnox exec -- wrangler deploy | complete)
 print $out.stdout
 $out.stdout | lines | where {|l| ($l | str contains "workers.dev") or ($l | str contains "https://")} | each {|l| print $"🌐 ($l | str trim)"}
+'''
+
+
+# =============================================================================
+# proto:* — one source of truth (maps.proto) → Rust + TypeScript codegen.
+# Edit crates/connectrpc/proto/maps/v1/maps.proto, then `mise run proto:gen`.
+# =============================================================================
+
+[tasks."proto:lint"]
+description = "Lint the maps proto (the single contract behind the Rust server, Rust client, and TS client)."
+dir = "crates/connectrpc"
+shell = "nu -c"
+run = "buf lint"
+
+[tasks."proto:gen"]
+description = "Regenerate ALL codegen from maps.proto in one shot: Rust (build.rs via cargo) + TypeScript (buf)."
+shell = "nu -c"
+depends = ["web:gen"]
+run = '''
+# Rust connect/proto code is produced by build.rs; cargo check refreshes it from
+# the updated .proto (client feature = fastest, no google_maps).
+cargo check -p google-maps-connectrpc --no-default-features --features client --target $env.WASM_TARGET
+print "✓ regenerated Rust (build.rs) + TypeScript (buf) from maps.proto"
 '''

@@ -29,7 +29,7 @@ pub mod proto {
 // dependency (so callers stay tiny — they bind over RPC instead of embedding).
 pub use crate::proto::maps::v1::{
     DirectionsRequest, DirectionsResponse, GeocodeRequest, GeocodeResponse, MapsServiceClient,
-    ReverseGeocodeRequest, Route, TextSearchRequest, TextSearchResponse,
+    ReverseGeocodeRequest, ReverseGeocodeResponse, Route, TextSearchRequest, TextSearchResponse,
 };
 
 // The SERVER lives behind `_server` (enabled by `worker`/`native`) — it's the
@@ -54,7 +54,7 @@ mod server {
     use crate::proto::maps::v1::{
         DirectionsResponse, GeoResult, GeocodeResponse, MapsService, OwnedDirectionsRequestView,
         OwnedGeocodeRequestView, OwnedReverseGeocodeRequestView, OwnedTextSearchRequestView,
-        Place as PbPlace, Route, TextSearchResponse,
+        Place as PbPlace, ReverseGeocodeResponse, Route, TextSearchResponse,
     };
 
     // The only per-target difference: Cloudflare's `worker::Fetch` futures are
@@ -116,7 +116,7 @@ mod server {
             &self,
             _ctx: RequestContext,
             request: OwnedReverseGeocodeRequestView,
-        ) -> ServiceResult<GeocodeResponse> {
+        ) -> ServiceResult<ReverseGeocodeResponse> {
             let latlng = LatLng::try_from_f64(request.latitude, request.longitude)
                 .map_err(|error| ConnectError::internal(error.to_string()))?;
             let response = exec_await!(self.client.reverse_geocoding(latlng).execute())
@@ -133,7 +133,7 @@ mod server {
                 })
                 .collect();
 
-            Ok(Response::new(GeocodeResponse {
+            Ok(Response::new(ReverseGeocodeResponse {
                 results,
                 status: format!("{:?}", response.status),
                 ..Default::default()

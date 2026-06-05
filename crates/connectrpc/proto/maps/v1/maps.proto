@@ -11,7 +11,7 @@ service MapsService {
   rpc Geocode(GeocodeRequest) returns (GeocodeResponse);
 
   // Reverse geocoding: coordinates -> formatted addresses.
-  rpc ReverseGeocode(ReverseGeocodeRequest) returns (GeocodeResponse);
+  rpc ReverseGeocode(ReverseGeocodeRequest) returns (ReverseGeocodeResponse);
 
   // Directions: origin + destination -> route summaries (distance/duration).
   rpc Directions(DirectionsRequest) returns (DirectionsResponse);
@@ -39,6 +39,11 @@ message GeoResult {
 message ReverseGeocodeRequest {
   double latitude = 1;
   double longitude = 2;
+}
+
+message ReverseGeocodeResponse {
+  repeated GeoResult results = 1;
+  string status = 2;
 }
 
 message DirectionsRequest {
