@@ -26,6 +26,7 @@ native = ["_server", "google_maps/reqwest", "google_maps/reqwest-default-tls"]
 _server = [
     "dep:google_maps",
     "google_maps/geocoding",
+    "google_maps/directions",
     "google_maps/places-new-core",
     "google_maps/places-new-text-search",
 ]

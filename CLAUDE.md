@@ -102,7 +102,7 @@ The `[workspace]` block is fork-only — keep it out of any upstream worker-feat
 - [x] Reusable `google-maps-connectrpc` crate + Cloudflare example
 - [x] **Native + Cloudflare dual-target for the ConnectRPC crate** (feature-gated; `connectrpc-native` axum example; `test:connectrpc` smokes both)
 - [x] **Reusable web client (simple, no Kumo)** — `web/packages/connect` (framework-agnostic typed Connect client from maps.proto) + vanilla `web/demo`; mise `web:*`
-- [ ] Expand the proto to cover **all** Maps APIs over Connect RPC (directions, reverse geocode, distance matrix, roads, address validation, places-new …) — flows through to the TS client automatically
+- [~] Expand the proto over Connect RPC: Geocode + ReverseGeocode + Directions + TextSearch done; remaining: distance matrix, elevation, time zone, roads, address validation, places-new (nearby/autocomplete/details) (directions, reverse geocode, distance matrix, roads, address validation, places-new …) — flows through to the TS client automatically
 - [ ] **Kumo + React** layer on top of the web client (later, when the shared Kumo+ConnectRPC setup matures)
 - [ ] Publish `@joeblew999/google-maps-connect` to npm (for cross-repo consumers like remy-sport) — currently workspace-only; add a dist build + publish task
 - [ ] Bump `cf-connectrpc-middleware` to connectrpc 0.6 (AFTER all Maps APIs covered over Connect RPC)

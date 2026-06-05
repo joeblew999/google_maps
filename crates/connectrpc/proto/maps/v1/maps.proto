@@ -10,6 +10,12 @@ service MapsService {
   // Forward geocoding: address string -> coordinates + formatted address.
   rpc Geocode(GeocodeRequest) returns (GeocodeResponse);
 
+  // Reverse geocoding: coordinates -> formatted addresses.
+  rpc ReverseGeocode(ReverseGeocodeRequest) returns (GeocodeResponse);
+
+  // Directions: origin + destination -> route summaries (distance/duration).
+  rpc Directions(DirectionsRequest) returns (DirectionsResponse);
+
   // Places (New) Text Search: free-text query -> matching places.
   rpc TextSearch(TextSearchRequest) returns (TextSearchResponse);
 }
@@ -28,6 +34,29 @@ message GeoResult {
   string formatted_address = 1;
   double latitude = 2;
   double longitude = 3;
+}
+
+message ReverseGeocodeRequest {
+  double latitude = 1;
+  double longitude = 2;
+}
+
+message DirectionsRequest {
+  string origin = 1;
+  string destination = 2;
+}
+
+message DirectionsResponse {
+  repeated Route routes = 1;
+  string status = 2;
+}
+
+message Route {
+  string summary = 1;
+  string distance = 2;       // e.g. "450 km" (first leg)
+  string duration = 3;       // e.g. "4 hours 30 mins" (first leg)
+  string start_address = 4;
+  string end_address = 5;
 }
 
 message TextSearchRequest {

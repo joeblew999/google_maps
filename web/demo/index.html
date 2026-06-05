@@ -5,20 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>google-maps-connect demo</title>
     <style>
-      body { font: 15px/1.5 system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
-      input, button { font: inherit; padding: 0.4rem 0.6rem; }
-      pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow: auto; }
-      @media (prefers-color-scheme: dark) { body { background:#111; color:#eee } pre { background:#1c1c1c } }
+      body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+      h1 { font-size: 1.3rem; } h2 { font-size: 1rem; margin: 1.4rem 0 .4rem; }
+      input { font: inherit; padding: 0.35rem 0.5rem; } button { font: inherit; padding: 0.35rem 0.7rem; cursor: pointer; }
+      .row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; margin: .3rem 0; }
+      pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow: auto; max-height: 50vh; }
+      .url { width: 100%; }
+      @media (prefers-color-scheme: dark) { body { background:#111; color:#eee } pre { background:#1c1c1c } input { background:#222; color:#eee; border:1px solid #444 } }
     </style>
   </head>
   <body>
-    <h1>Maps Connect (no Kumo) demo</h1>
-    <p>Calls <code>maps.v1.MapsService</code> on the worker URL below — point it at the shared maps worker or your project worker.</p>
-    <p>
-      <input id="url" size="34" value="http://localhost:8787" />
-      <input id="q" size="20" value="Ottawa" placeholder="address" />
-      <button id="go">Geocode</button>
-    </p>
+    <h1>Maps Connect demo <small>(no Kumo, vanilla TS)</small></h1>
+    <p>Typed Connect RPCs over the maps worker. Point at the shared maps worker or a project worker.</p>
+    <div class="row"><input id="url" class="url" value="http://localhost:8787" /></div>
+
+    <h2>Geocode</h2>
+    <div class="row"><input id="addr" size="28" value="Ottawa, Canada" /><button id="geocode">Geocode</button></div>
+
+    <h2>Reverse geocode</h2>
+    <div class="row"><input id="lat" size="10" value="45.4215" /><input id="lng" size="10" value="-75.6972" /><button id="reverse">Reverse</button></div>
+
+    <h2>Directions</h2>
+    <div class="row"><input id="origin" size="16" value="Ottawa" /><input id="destination" size="16" value="Toronto" /><button id="directions">Directions</button></div>
+
+    <h2>Places text search</h2>
+    <div class="row"><input id="query" size="28" value="coffee in Ottawa" /><button id="textsearch">Search</button></div>
+
+    <h2>Result</h2>
     <pre id="out">results appear here…</pre>
     <script type="module" src="/src/main.ts"></script>
   </body>

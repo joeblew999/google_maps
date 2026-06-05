@@ -28,7 +28,8 @@ pub mod proto {
 // The typed CLIENT + message types — available in every role, no `google_maps`
 // dependency (so callers stay tiny — they bind over RPC instead of embedding).
 pub use crate::proto::maps::v1::{
-    GeocodeRequest, GeocodeResponse, MapsServiceClient, TextSearchRequest, TextSearchResponse,
+    DirectionsRequest, DirectionsResponse, GeocodeRequest, GeocodeResponse, MapsServiceClient,
+    ReverseGeocodeRequest, Route, TextSearchRequest, TextSearchResponse,
 };
 
 // The SERVER lives behind `_server` (enabled by `worker`/`native`) — it's the
@@ -42,15 +43,18 @@ pub use server::MapsServer;
 mod server {
     use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};
     use google_maps::Client;
+    use google_maps::directions::request::location::Location;
     use google_maps::places_new::FieldMask;
+    use google_maps::types::LatLng;
     use rust_decimal::prelude::ToPrimitive;
 
     #[cfg(feature = "worker")]
     use worker::send::IntoSendFuture;
 
     use crate::proto::maps::v1::{
-        GeoResult, GeocodeResponse, MapsService, OwnedGeocodeRequestView,
-        OwnedTextSearchRequestView, Place as PbPlace, TextSearchResponse,
+        DirectionsResponse, GeoResult, GeocodeResponse, MapsService, OwnedDirectionsRequestView,
+        OwnedGeocodeRequestView, OwnedReverseGeocodeRequestView, OwnedTextSearchRequestView,
+        Place as PbPlace, Route, TextSearchResponse,
     };
 
     // The only per-target difference: Cloudflare's `worker::Fetch` futures are
@@ -103,6 +107,71 @@ mod server {
 
             Ok(Response::new(GeocodeResponse {
                 results,
+                status: format!("{:?}", response.status),
+                ..Default::default()
+            }))
+        }
+
+        async fn reverse_geocode(
+            &self,
+            _ctx: RequestContext,
+            request: OwnedReverseGeocodeRequestView,
+        ) -> ServiceResult<GeocodeResponse> {
+            let latlng = LatLng::try_from_f64(request.latitude, request.longitude)
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+            let response = exec_await!(self.client.reverse_geocoding(latlng).execute())
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            let results = response
+                .results
+                .iter()
+                .map(|r| GeoResult {
+                    formatted_address: r.formatted_address.clone(),
+                    latitude: r.geometry.location.lat.to_f64().unwrap_or_default(),
+                    longitude: r.geometry.location.lng.to_f64().unwrap_or_default(),
+                    ..Default::default()
+                })
+                .collect();
+
+            Ok(Response::new(GeocodeResponse {
+                results,
+                status: format!("{:?}", response.status),
+                ..Default::default()
+            }))
+        }
+
+        async fn directions(
+            &self,
+            _ctx: RequestContext,
+            request: OwnedDirectionsRequestView,
+        ) -> ServiceResult<DirectionsResponse> {
+            let response = exec_await!(self
+                .client
+                .directions(
+                    Location::from_address(request.origin),
+                    Location::from_address(request.destination),
+                )
+                .execute())
+            .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            let routes = response
+                .routes
+                .iter()
+                .map(|r| {
+                    let leg = r.legs.first();
+                    Route {
+                        summary: r.summary.clone(),
+                        distance: leg.map(|l| l.distance.text.clone()).unwrap_or_default(),
+                        duration: leg.map(|l| l.duration.text.clone()).unwrap_or_default(),
+                        start_address: leg.map(|l| l.start_address.clone()).unwrap_or_default(),
+                        end_address: leg.map(|l| l.end_address.clone()).unwrap_or_default(),
+                        ..Default::default()
+                    }
+                })
+                .collect();
+
+            Ok(Response::new(DirectionsResponse {
+                routes,
                 status: format!("{:?}", response.status),
                 ..Default::default()
             }))
