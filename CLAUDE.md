@@ -109,7 +109,8 @@ The `[workspace]` block is fork-only — keep it out of any upstream worker-feat
 - [ ] Publish `@joeblew999/google-maps-connect` to npm (for cross-repo consumers like remy-sport) — currently workspace-only; add a dist build + publish task
 - [ ] Bump `cf-connectrpc-middleware` to connectrpc 0.6 (AFTER all Maps APIs covered over Connect RPC)
 - [ ] (later) wire `cf-connectrpc-middleware` layers (cedar/tracing/…) once they stabilise
-- [ ] Re-mint (or update restrictions on) the EXISTING fnox key — it was minted with only 3 services; GOOGLE_MAPS_SERVICES now lists 8, but secret:google reuses the existing key by name (does not update its api-targets). Delete+re-mint or add a restrictions-update step.
+- [x] **Key restrictions synced to all 8 services** — the existing fnox key was updated in place (`api-keys update`, key string + fnox unchanged); `secret:google`'s reuse path now runs `api-keys update …$api_targets` so the restrictions always track `GOOGLE_MAPS_SERVICES` (no re-mint needed when widening).
 - [~] Token/quota system (docs/TOKENS.md). DONE: reusable `TokenAuthLayer` (generic → gates BOTH CF worker AND native axum via `MAPS_TOKENS`; `test:connectrpc` proves both no-token→unauthenticated / valid→Google); Rust client sends its token (`MAPS_TOKEN`); `secret:maps-token` issuance; `gcloud:quota:open` for the daily ceiling. REMAINING: CF rate-limit binding + metrics (cf-binding = CF-only; native needs a tower rate-limiter). Middleware portability documented in CLOUDFLARE.md.
-- [ ] Reopen a billing account to unblock live data for all APIs
+- [x] **Billing live + token-gated worker DEPLOYED** — `google-maps-connectrpc-worker-example.gedw99.workers.dev`: no token → `unauthenticated`, valid Bearer → real Google data. `example:connectrpc:deploy` pushes `GOOGLE_MAPS_API_KEY` + `MAPS_TOKENS` secrets from fnox.
+- [ ] **Manual:** set per-API daily quota caps in the console (`mise run gcloud:quota:open`) for a hard spend ceiling (can't be done via gcloud — alpha/interactive only). Token gate is the access guard until then.
 - Consumers waiting on this: **remy-sport** + other joeblew999 projects.

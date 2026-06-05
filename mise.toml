@@ -206,10 +206,18 @@ wrangler dev --local
 '''
 
 [tasks."example:connectrpc:deploy"]
-description = "Deploy the ConnectRPC example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
+description = "Deploy the token-gated ConnectRPC maps worker + push secrets (GOOGLE_MAPS_API_KEY + MAPS_TOKENS allow-list) from fnox."
 dir = "examples/cf-connectrpc-worker"
 shell = "nu -c"
-run = "fnox exec -- wrangler deploy"
+depends = ["secret:google", "secret:maps-token"]
+run = '''
+fnox exec -- wrangler deploy
+# Push secrets to the deployed worker. MAPS_TOKENS (the allow-list) = the consumer
+# token; widen to a comma-separated list as you add consumers.
+fnox exec -- bash -c 'printf "%s" "$GOOGLE_MAPS_API_KEY" | wrangler secret put GOOGLE_MAPS_API_KEY'
+fnox exec -- bash -c 'printf "%s" "$MAPS_TOKEN" | wrangler secret put MAPS_TOKENS'
+print "✓ deployed + secrets set. Call with header: Authorization: Bearer <MAPS_TOKEN>"
+'''
 
 [tasks."example:connectrpc:client:dev"]
 description = "Run the Cloudflare CLIENT example worker (binds over RPC, no google_maps). Set MAPS_URL to the maps worker (default http://localhost:8787)."
@@ -396,7 +404,11 @@ if $probe.exit_code == 0 {
                     $key_name = ($created.stdout | str trim)
                 }
             } else {
-                print "  Reusing existing restricted key."
+                # Reuse the existing key, but SYNC its restrictions to the current
+                # GOOGLE_MAPS_SERVICES (so widening the service list takes effect
+                # without a re-mint — the key string is unchanged).
+                ^gcloud services api-keys update $key_name --project $project ...$api_targets out+err> /dev/null
+                print "  Reusing existing key (restrictions synced to GOOGLE_MAPS_SERVICES)."
             }
 
             if ($key_name | is-not-empty) {

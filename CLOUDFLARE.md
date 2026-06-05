@@ -148,13 +148,16 @@ mise run gcloud:billing:use      # pin + link one (only links if OPEN; a closed 
 mise run gcloud:billing:status   # current state
 ```
 
-## Status (2026-06-04)
+## Status
 
-- Native build + 256 unit tests: green. All wasm builds (lib, ConnectRPC crate, both example workers): green.
-- Live smoke: all REST API routes round-trip via `worker::Fetch`; Places text search returned real data.
-- **Blocker for live data:** this account's billing accounts are all closed — geocoding/directions
-  return "enable billing" until one is reopened (`gcloud:billing:open` → `gcloud:billing:use`). The transport,
-  key, and restriction are all proven correct.
+- Native + 256 unit tests green; all wasm builds green; native+CF ConnectRPC smokes green.
+- **Billing is live**; the key is restricted to all 8 services.
+- **The token-gated ConnectRPC worker is DEPLOYED** and returns real data:
+  `https://google-maps-connectrpc-worker-example.gedw99.workers.dev`
+  - no token → `{"code":"unauthenticated"}` (gate rejects)
+  - `Authorization: Bearer <MAPS_TOKEN>` → real Google data (`{"results":[{"formattedAddress":"Ottawa, ON, Canada",…}]}`)
+- **One manual step remains for the hard spend ceiling:** set per-API daily caps in the console
+  (`mise run gcloud:quota:open`). Until then the token gate is the access guard (deny-all without a valid token).
 
 ## Middleware portability (native ↔ Cloudflare)
 
