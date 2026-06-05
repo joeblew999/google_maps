@@ -211,11 +211,42 @@ dir = "examples/cf-connectrpc-worker"
 shell = "nu -c"
 depends = ["secret:google", "secret:maps-token"]
 run = '''
-fnox exec -- wrangler deploy
+let deployed = (fnox exec -- wrangler deploy | complete)
+print $deployed.stdout
 # Push secrets to the deployed worker. MAPS_TOKENS (the allow-list) = the consumer
 # token; widen to a comma-separated list as you add consumers.
 fnox exec -- bash -c 'printf "%s" "$GOOGLE_MAPS_API_KEY" | wrangler secret put GOOGLE_MAPS_API_KEY'
 fnox exec -- bash -c 'printf "%s" "$MAPS_TOKEN" | wrangler secret put MAPS_TOKENS'
+
+# ── Post-deploy GATE ASSERTION (billing safety net) ──────────────────────────
+# The local smokes use a dummy key, so a gate regression there costs nothing.
+# THIS is the check that matters: the LIVE worker holds the real key, so verify
+# the gate rejects unauthenticated traffic before we trust it. Both probes are
+# NEGATIVE (no token / bad token) → they never reach Google → $0 cost. If the
+# gate is ever open, an attacker could run up the bill, so fail the deploy LOUD.
+let combined = $"($deployed.stdout)\n($deployed.stderr)"
+let found = ($combined | parse -r '(?<u>https://[\w.-]+\.workers\.dev)')
+if ($found | is-empty) {
+    print "⚠ could not parse deployed URL from wrangler output — run `mise run test:connectrpc:deployed <url>` to verify the gate."
+} else {
+    let base = ($found.u.0 | str trim)
+    let url = $"($base)/maps.v1.MapsService/Geocode"
+    sleep 3sec  # let the new version go live
+    let no_tok  = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
+    let bad_tok = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -H "Authorization: Bearer definitely-not-a-valid-token" -d '{"address":"Ottawa"}')
+    mut failure = ""
+    if not (($no_tok  | str downcase) | str contains "unauthenticated") {
+        $failure = $"LIVE GATE OPEN — no-token request was NOT rejected: ($no_tok | str substring 0..200)"
+    } else if not (($bad_tok | str downcase) | str contains "unauthenticated") {
+        $failure = $"LIVE GATE OPEN — bad-token request was NOT rejected: ($bad_tok | str substring 0..200)"
+    }
+    if ($failure | is-not-empty) {
+        print $"✗✗✗ ($failure)"
+        print "✗✗✗ The deployed worker is NOT gating traffic — it can be billed by anyone. Investigate NOW."
+        exit 1
+    }
+    print $"✓ live gate verified at ($base) — no-token and bad-token both rejected \(unauthenticated, $0 to Google)."
+}
 print "✓ deployed + secrets set. Call with header: Authorization: Bearer <MAPS_TOKEN>"
 '''
 
@@ -760,6 +791,30 @@ do --ignore-errors { ^pkill -f "localhost:8806" }
 rm -f .dev.vars
 if ($failure | is-not-empty) { print $"✗ ($failure)"; exit 1 }
 print "✓ Cloudflare ConnectRPC OK — token gate rejects untokened, valid token reaches Google (REQUEST_DENIED)."
+'''
+
+[tasks."test:connectrpc:deployed"]
+description = "Verify the LIVE deployed worker gates traffic (no-token + bad-token -> unauthenticated, $0 to Google). Override URL via MAPS_DEPLOYED_URL."
+shell = "nu -c"
+run = '''
+let base = ($env.MAPS_DEPLOYED_URL? | default "https://google-maps-connectrpc-worker-example.gedw99.workers.dev")
+let url = $"($base)/maps.v1.MapsService/Geocode"
+print $"Probing live gate at ($base) …"
+# Both probes are NEGATIVE — they must be rejected before reaching Google, so $0.
+let no_tok  = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
+let bad_tok = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -H "Authorization: Bearer definitely-not-a-valid-token" -d '{"address":"Ottawa"}')
+mut failure = ""
+if not (($no_tok  | str downcase) | str contains "unauthenticated") {
+    $failure = $"LIVE GATE OPEN — no-token request was NOT rejected: ($no_tok | str substring 0..200)"
+} else if not (($bad_tok | str downcase) | str contains "unauthenticated") {
+    $failure = $"LIVE GATE OPEN — bad-token request was NOT rejected: ($bad_tok | str substring 0..200)"
+}
+if ($failure | is-not-empty) {
+    print $"✗✗✗ ($failure)"
+    print "✗✗✗ The deployed worker is NOT gating traffic — it can be billed by anyone. Investigate NOW."
+    exit 1
+}
+print $"✓ live gate verified — no-token and bad-token both rejected \(unauthenticated, $0 to Google)."
 '''
 
 

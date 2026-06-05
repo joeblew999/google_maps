@@ -87,6 +87,8 @@ The `[workspace]` block is fork-only — keep it out of any upstream worker-feat
 - `cargo test` — native unit tests (library only)
 - `mise run test` — native tests + wasm build gate
 - `mise run test:cf` / `test:cf-smoke` / `test:cf-live` — wasm build gate / dummy-key smoke / real-key live
+- `mise run test:connectrpc` — token-gate smoke on BOTH runtimes (no-token→unauthenticated, valid→Google); dummy key so it never spends
+- `mise run test:connectrpc:deployed` — **billing safety net:** probes the LIVE deployed worker with no-token + bad-token, fails if either is NOT rejected (both are negative → $0 to Google). Also runs automatically at the end of `example:connectrpc:deploy`.
 - `cargo:check:wasm`, `cargo:lint`, `cargo:format`, `cargo:machete`, `cargo:pre-commit` (hidden)
 - `upstream:fetch` / `upstream:sync` (hidden) — keep master tracking upstream; rebase the feature branch
 
