@@ -155,3 +155,11 @@ mise run gcloud:billing:status   # current state
 - **Blocker for live data:** this account's billing accounts are all closed — geocoding/directions
   return "enable billing" until one is reopened (`gcloud:billing:open` → `gcloud:billing:use`). The transport,
   key, and restriction are all proven correct.
+
+## Protecting the shared key (tokens, rate limits, quota)
+
+The shared maps worker holds one restricted Google key, so consumer access must be gated to avoid
+burning spend. Recommended design (defense in depth): **GCP per-key daily quota** (hard ceiling) +
+**Bearer token per consumer** + **Cloudflare Rate Limiting** + metrics; browsers go through a
+project worker (never hold a token). Full design + phasing: **[docs/TOKENS.md](docs/TOKENS.md)**.
+Not implemented yet — billing + key restriction are the current guardrails.

@@ -20,6 +20,10 @@
 //! let res = maps.geocode(GeocodeRequest { address: "Ottawa".into(), ..Default::default() }).await?;
 //! ```
 
+// connect-rust's service trait uses `async fn`; our impls return `impl Future`
+// which refines the trait's bound — the standard, expected pattern (see eliza/cf-do-locator).
+#![allow(refining_impl_trait)]
+
 /// Generated protobuf types + `MapsService` trait/ext + `MapsServiceClient`.
 pub mod proto {
     connectrpc::include_generated!();
