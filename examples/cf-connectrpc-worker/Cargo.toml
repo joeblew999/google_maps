@@ -5,6 +5,11 @@ edition = "2021"
 publish = false
 description = "Example Cloudflare Worker mounting the reusable google-maps-connectrpc service (typed Connect RPCs over the google_maps worker transport)."
 
+[package.metadata]
+
+[package.metadata.cargo-machete]
+ignored = ["getrandom", "worker-macros"]
+
 [lib]
 crate-type = ["cdylib"]
 
@@ -24,7 +29,6 @@ http           = "1"
 http-body-util = "0.1"
 bytes          = "1.5"
 tower          = { version = "0.5", default-features = false, features = ["util"] }
-futures        = "0.3"
 # OS RNG on wasm32 (uuid/entropy via transitive deps).
 getrandom      = { version = "0.2", features = ["js"] }
 

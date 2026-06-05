@@ -51,16 +51,14 @@ CLOUDSDK_PYTHON = "{{env.HOME}}/.local/share/mise/shims/python3"
 # on wasm32 without a `js` RNG. Widen only with a confirmed wasm build.
 WASM_FEATURES = "address_validation,directions,distance_matrix,elevation,geocoding,roads,time_zone,places-new-core,places-new-nearby-search,places-new-place-photos,places-new-text-search,decimal-serde"
 
-# Google Maps Platform service IDs the provisioned API key is enabled for and
-# restricted to. This list MUST mirror WASM_FEATURES above — one service per API
-# the worker can actually call:
-#   geocoding  (forward + reverse) -> geocoding-backend.googleapis.com
-#   directions                     -> directions-backend.googleapis.com
-#   places-new-text-search         -> places.googleapis.com
-# Verified sufficient live: every example route reached its API past the key
-# restriction (only billing gates geocoding/directions). Widen here if you widen
-# WASM_FEATURES (e.g. elevation -> elevation-backend.googleapis.com).
-GOOGLE_MAPS_SERVICES = "geocoding-backend.googleapis.com directions-backend.googleapis.com places.googleapis.com"
+# Google Maps Platform service IDs the provisioned key is enabled for + restricted
+# to. MUST mirror WASM_FEATURES (every API the worker can call), else the key
+# blocks the un-listed ones. Service IDs verified via `gcloud services list`:
+#   geocoding (fwd+rev) -> geocoding-backend       directions      -> directions-backend
+#   distance_matrix     -> distance-matrix-backend elevation       -> elevation-backend
+#   time_zone           -> timezone-backend        roads           -> roads.googleapis.com
+#   address_validation  -> addressvalidation        places-new (all)-> places.googleapis.com
+GOOGLE_MAPS_SERVICES = "geocoding-backend.googleapis.com directions-backend.googleapis.com distance-matrix-backend.googleapis.com elevation-backend.googleapis.com timezone-backend.googleapis.com roads.googleapis.com addressvalidation.googleapis.com places.googleapis.com"
 
 # Display name for the provisioned API key + the GCP project (non-secret default).
 GOOGLE_MAPS_KEY_DISPLAY_NAME = "google_maps-rust-fork"

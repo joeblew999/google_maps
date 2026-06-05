@@ -5,6 +5,11 @@ edition = "2021"
 publish = false
 description = "Example Cloudflare worker that CALLS the maps Connect service via the typed client — binds over RPC, does NOT embed google_maps, so it stays tiny."
 
+[package.metadata]
+
+[package.metadata.cargo-machete]
+ignored = ["worker-macros"]
+
 [lib]
 crate-type = ["cdylib"]
 
