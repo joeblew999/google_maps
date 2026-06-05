@@ -2,7 +2,7 @@ import { createMapsClient } from "@joeblew999/google-maps-connect";
 
 const $ = (id: string) => document.getElementById(id) as HTMLInputElement;
 const out = document.getElementById("out") as HTMLPreElement;
-const client = () => createMapsClient($("url").value);
+const client = () => createMapsClient($("url").value, $("token").value || undefined);
 
 async function run(call: () => Promise<unknown>) {
   out.textContent = "calling…";

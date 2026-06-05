@@ -17,7 +17,9 @@
   <body>
     <h1>Maps Connect demo <small>(no Kumo, vanilla TS)</small></h1>
     <p>Typed Connect RPCs over the maps worker. Point at the shared maps worker or a project worker.</p>
-    <div class="row"><input id="url" class="url" value="http://localhost:8787" /></div>
+    <div class="row"><label>Worker URL</label> <input id="url" class="url" value="http://localhost:8787" /></div>
+    <div class="row"><label>Token</label> <input id="token" class="url" value="dev-token" placeholder="Bearer token (dev-token locally)" /></div>
+    <p><small>The token is sent as <code>Authorization: Bearer …</code>. In production the browser should not hold it — call a project worker that injects it server-side.</small></p>
 
     <h2>Geocode</h2>
     <div class="row"><input id="addr" size="28" value="Ottawa, Canada" /><button id="geocode">Geocode</button></div>
