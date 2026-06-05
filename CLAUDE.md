@@ -110,6 +110,6 @@ The `[workspace]` block is fork-only — keep it out of any upstream worker-feat
 - [ ] Bump `cf-connectrpc-middleware` to connectrpc 0.6 (AFTER all Maps APIs covered over Connect RPC)
 - [ ] (later) wire `cf-connectrpc-middleware` layers (cedar/tracing/…) once they stabilise
 - [ ] Re-mint (or update restrictions on) the EXISTING fnox key — it was minted with only 3 services; GOOGLE_MAPS_SERVICES now lists 8, but secret:google reuses the existing key by name (does not update its api-targets). Delete+re-mint or add a restrictions-update step.
-- [ ] Token/quota system to protect the shared key (design in docs/TOKENS.md): GCP daily quota + Bearer token + CF rate limit
+- [~] Token/quota system (docs/TOKENS.md). DONE: `TokenAuthLayer` (reusable tower::Layer) gating the CF worker via `MAPS_TOKENS` allow-list; smoke proves no-token→unauthenticated / valid→reaches Google. REMAINING: native (axum) gate, Rust client sends its token, token-issuance mise task (fnox), CF rate-limit binding, GCP per-key daily quota
 - [ ] Reopen a billing account to unblock live data for all APIs
 - Consumers waiting on this: **remy-sport** + other joeblew999 projects.
