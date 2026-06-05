@@ -94,9 +94,9 @@ pub use crate::places_new::nearby_search::error::Error;
 mod request;
 pub use crate::places_new::nearby_search::request::{Request, RequestBuilder};
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request_with_client;
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::places_new::nearby_search::request_with_client::{
     RequestWithClient,
     RequestWithClientBuilder

@@ -10,16 +10,33 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # The fork, built with the Cloudflare Workers transport (no reqwest/tokio timers).
+# Every API surface is enabled here so the example can smoke-test each one.
+# NOTE: legacy `places` is intentionally omitted — it defines the same
+# `Client::text_search`/`nearby_search` as `places-new` and the two can't coexist.
 google_maps = { path = "../..", default-features = false, features = [
     "worker",
-    "geocoding",
+    "address_validation",
     "directions",
+    "distance_matrix",
+    "elevation",
+    "geocoding",
+    "roads",
+    "time_zone",
     "places-new-core",
+    "places-new-autocomplete",
+    "places-new-nearby-search",
+    "places-new-place-details",
+    "places-new-place-photos",
     "places-new-text-search",
+    "decimal-serde",
 ] }
 
 worker        = { version = "0.8", features = ["http"] }
 worker-macros = { version = "0.8", features = ["http"] }
+
+# uuid with the `js` backend so the uuid-using APIs (autocomplete, place-details)
+# get a wasm randomness source via feature unification.
+uuid = { version = "1", features = ["js", "v4"] }
 
 serde_json = "1"
 console_error_panic_hook = "0.1"

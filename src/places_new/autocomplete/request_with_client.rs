@@ -4,7 +4,7 @@ use crate::places_new::autocomplete::ResponseWithContext;
 use crate::places_new::LatLng;
 use crate::places_new::types::request::{LocationBias, LocationRestriction, PlaceTypeSet};
 use icu_locale::Locale;
-use reqwest::header::HeaderMap;
+use http::header::HeaderMap;
 use rust_iso3166::CountryCode;
 
 // -------------------------------------------------------------------------------------------------
@@ -510,7 +510,7 @@ impl crate::traits::EndPoint for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestBody for &RequestWithClient<'_> {
     /// Converts the `RequestWithClient` struct into JSON for submission to Google Maps.
     ///
@@ -524,7 +524,7 @@ impl crate::traits::RequestBody for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::QueryString for &RequestWithClient<'_> {
     /// Builds the URL query string for the HTTP request.
     ///
@@ -539,7 +539,7 @@ impl crate::traits::QueryString for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestHeaders for &RequestWithClient<'_> {
     /// Returns a map of HTTP header names to values.
     ///
@@ -555,7 +555,7 @@ impl crate::traits::RequestHeaders for &RequestWithClient<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::Validatable for &RequestWithClient<'_> {
     /// Validates the autocomplete request parameters.
     ///

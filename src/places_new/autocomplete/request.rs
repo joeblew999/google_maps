@@ -264,7 +264,7 @@ impl Request {
     ///     .execute()
     ///     .await?;
     /// ```
-    #[cfg(feature = "reqwest")]
+    #[cfg(any(feature = "reqwest", feature = "worker"))]
     #[must_use]
     pub fn with_client(
         self,
@@ -292,7 +292,7 @@ impl Request {
 //
 // Trait Implementations
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl std::convert::From<crate::places_new::autocomplete::RequestWithClient<'_>> for Request {
     /// Converts a `RequestWithClient` to a serializable `Request`.
     ///

@@ -15,13 +15,13 @@ mod with_region;
 mod with_reviews_sort;
 mod with_sessiontoken;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod execute;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod get;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request_headers;
 
 // -----------------------------------------------------------------------------

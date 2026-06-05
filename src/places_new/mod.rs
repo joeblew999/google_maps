@@ -89,7 +89,7 @@ pub mod autocomplete;
 #[cfg(feature = "places-new-nearby-search")]
 pub mod nearby_search;
 
-#[cfg(all(feature = "reqwest", feature = "places-new-place-details"))]
+#[cfg(all(any(feature = "reqwest", feature = "worker"), feature = "places-new-place-details"))]
 pub mod place_details;
 
 #[cfg(feature = "places-new-place-photos")]

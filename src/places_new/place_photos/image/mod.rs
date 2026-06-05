@@ -90,9 +90,9 @@
 //! - **`width`** — The maximum width of the image.
 //! - **`html_attributions[]`** — Any required attributions. This field is always present, but might be empty.
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request;
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::places_new::place_photos::image::request::{
     Request,
     RequestBuilder

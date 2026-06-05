@@ -111,7 +111,7 @@ pub use crate::places_new::place_photos::image::{
 	PhotoImage,
 	Response as ImageResponse,
 };
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::places_new::place_photos::image::{
     Request as ImageRequest,
     RequestBuilder as ImageRequestBuilder,
@@ -122,7 +122,7 @@ pub use crate::places_new::place_photos::uri::{
 	PhotoUri,
 	Response as UriResponse
 };
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::places_new::place_photos::uri::{
     Request as UriRequest,
     RequestBuilder as UriRequestBuilder,

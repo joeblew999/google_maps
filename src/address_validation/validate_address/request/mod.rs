@@ -12,10 +12,10 @@ mod query_string;
 mod request_body;
 mod validatable;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request_headers;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod execute;
 
 pub use crate::address_validation::validate_address::request::{

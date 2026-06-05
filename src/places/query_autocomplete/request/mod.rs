@@ -12,13 +12,13 @@ mod with_language;
 mod with_location;
 mod with_offset;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod execute;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod get;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request_headers;
 
 // -----------------------------------------------------------------------------

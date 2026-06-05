@@ -99,7 +99,7 @@ pub struct Request<'c> {
 //
 // Method Implementations
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl Request<'_> {
     /// Executes the place photo image request.
     ///
@@ -128,7 +128,7 @@ impl Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl<S: request_builder::State> RequestBuilder<'_, S> {
     /// Executes the place photo image request.
     ///
@@ -350,7 +350,7 @@ impl crate::traits::EndPoint for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestBody for &Request<'_> {
     /// Returns an empty request body.
     ///
@@ -365,7 +365,7 @@ impl crate::traits::RequestBody for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::QueryString for &Request<'_> {
     /// Builds the URL query string for the HTTP request.
     ///
@@ -406,14 +406,14 @@ impl crate::traits::QueryString for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestHeaders for &Request<'_> {
     /// Returns a map of HTTP header names to values.
     ///
     /// These headers will be added to the HTTP request alongside the standard headers like
     /// `X-Goog-Api-Key`.
-    fn request_headers(&self) -> reqwest::header::HeaderMap {
-        reqwest::header::HeaderMap::new()
+    fn request_headers(&self) -> http::header::HeaderMap {
+        http::header::HeaderMap::new()
     }
 
     /// Returns whether the `X-Goog-Api-Key` header should be set for this request.
@@ -424,7 +424,7 @@ impl crate::traits::RequestHeaders for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::Validatable for &Request<'_> {
     /// Validates the request parameters before sending to Google.
     ///

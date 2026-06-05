@@ -43,12 +43,21 @@ mod get_request;
         feature = "geocoding",
         feature = "time_zone",
         feature = "roads",
+        // Places (Legacy) API:
+        feature = "autocomplete",
+        feature = "places",
+        // Places (New) API:
+        feature = "places-new-place-details",
     )
 ))]
 mod get_request_worker;
 
 #[cfg(all(feature = "reqwest", feature = "places-new-place-photos"))]
 mod get_binary_request;
+
+// Cloudflare Workers transport: binary GET (place photos).
+#[cfg(all(feature = "worker", not(feature = "reqwest"), feature = "places-new-place-photos"))]
+mod get_binary_request_worker;
 
 #[cfg(all(
     feature = "reqwest",

@@ -40,7 +40,7 @@ CLOUDSDK_PYTHON = "{{env.HOME}}/.local/share/mise/shims/python3"
 # (geocoding + directions + Places-New text search). Do NOT add the `places-new`
 # umbrella or autocomplete/place-details — they pull `uuid` v4, which hard-errors
 # on wasm32 without a `js` RNG. Widen only with a confirmed wasm build.
-WASM_FEATURES = "geocoding,directions,places-new-core,places-new-text-search"
+WASM_FEATURES = "address_validation,directions,distance_matrix,elevation,geocoding,roads,time_zone,places-new-core,places-new-nearby-search,places-new-place-photos,places-new-text-search,decimal-serde"
 
 # Google Maps Platform service IDs the provisioned API key is enabled for and
 # restricted to. This list MUST mirror WASM_FEATURES above — one service per API

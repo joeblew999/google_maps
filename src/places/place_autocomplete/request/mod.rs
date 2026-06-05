@@ -18,13 +18,13 @@ mod with_region;
 mod with_sessiontoken;
 mod with_types;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod execute;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod get;
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request_headers;
 
 // -----------------------------------------------------------------------------

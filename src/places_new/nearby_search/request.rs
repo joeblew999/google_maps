@@ -319,7 +319,7 @@ impl Request {
     /// that can be executed.
     ///
     /// Use this to resume a stored or deserialized request.
-    #[cfg(feature = "reqwest")]
+    #[cfg(any(feature = "reqwest", feature = "worker"))]
     #[must_use]
     pub fn with_client(
         self,
@@ -345,7 +345,7 @@ impl Request {
 //
 // Trait Implementations
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl std::convert::From<crate::places_new::nearby_search::RequestWithClient<'_>> for Request {
     /// Converts a `RequestWithClient` to a serializable `Request`.
     ///

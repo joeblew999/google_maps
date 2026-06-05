@@ -114,7 +114,7 @@ impl Request<'_> {
     /// - The request validation fails (missing or invalid dimensions)
     /// - The network request fails
     /// - The API returns an error response
-    #[cfg(feature = "reqwest")]
+    #[cfg(any(feature = "reqwest", feature = "worker"))]
     pub async fn execute(self) -> Result<crate::places_new::place_photos::PhotoUri, crate::Error> {
         let response = self.client.get_request(&self).await?;
         let photo_uri = crate::places_new::place_photos::PhotoUri::from_response(
@@ -137,7 +137,7 @@ impl<S: request_builder::State> RequestBuilder<'_, S> {
     /// - The request validation fails (missing or invalid dimensions)
     /// - The network request fails
     /// - The API returns an error response
-    #[cfg(feature = "reqwest")]
+    #[cfg(any(feature = "reqwest", feature = "worker"))]
     pub async fn execute(self) -> Result<crate::places_new::place_photos::PhotoUri, crate::Error>
     where
         S: request_builder::IsComplete,
@@ -362,7 +362,7 @@ impl crate::traits::EndPoint for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestBody for &Request<'_> {
     /// Returns an empty request body.
     ///
@@ -377,7 +377,7 @@ impl crate::traits::RequestBody for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::QueryString for &Request<'_> {
     /// Builds the URL query string for the HTTP request.
     ///
@@ -418,14 +418,14 @@ impl crate::traits::QueryString for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::RequestHeaders for &Request<'_> {
     /// Returns a map of HTTP header names to values.
     ///
     /// These headers will be added to the HTTP request alongside the standard headers like
     /// `X-Goog-Api-Key`.
-    fn request_headers(&self) -> reqwest::header::HeaderMap {
-        reqwest::header::HeaderMap::new()
+    fn request_headers(&self) -> http::header::HeaderMap {
+        http::header::HeaderMap::new()
     }
 
     /// Returns whether the `X-Goog-Api-Key` header should be set for this request.
@@ -436,7 +436,7 @@ impl crate::traits::RequestHeaders for &Request<'_> {
     }
 }
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 impl crate::traits::Validatable for &Request<'_> {
     /// Validates the request parameters before sending to Google.
     ///

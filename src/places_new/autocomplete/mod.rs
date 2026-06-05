@@ -123,9 +123,9 @@ pub use crate::places_new::autocomplete::error::Error;
 mod request;
 pub use crate::places_new::autocomplete::request::{Request, RequestBuilder};
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request_with_client;
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::places_new::autocomplete::request_with_client::{
 	RequestWithClient,
 	RequestWithClientBuilder

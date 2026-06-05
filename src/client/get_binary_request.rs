@@ -52,7 +52,7 @@ impl crate::Client {
         let mut headers = request.request_headers();
 
         if REQ::send_x_goog_api_key() {
-            let mut api_key = reqwest::header::HeaderValue::from_str(&self.key)
+            let mut api_key = http::header::HeaderValue::from_str(&self.key)
                 .map_err(|_error| Error::InvalidHeaderValue {
                     header_name: "X-Goog-Api-Key".to_string()
                 })?;
