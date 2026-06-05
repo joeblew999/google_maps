@@ -578,7 +578,7 @@ cargo build --target $env.WASM_TARGET --no-default-features --features $"worker,
 cargo build -p google-maps-connectrpc --target $env.WASM_TARGET
 cd examples/cf-rest-worker
 cargo build --target $env.WASM_TARGET --release
-cd ../connectrpc-worker
+cd ../cf-connectrpc-worker
 cargo build --target $env.WASM_TARGET --release
 '''
 

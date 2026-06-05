@@ -32,10 +32,12 @@ pub mod proto {
 // The typed CLIENT + message types — available in every role, no `google_maps`
 // dependency (so callers stay tiny — they bind over RPC instead of embedding).
 pub use crate::proto::maps::v1::{
-    DirectionsRequest, DirectionsResponse, ElevationRequest, ElevationResponse, ElevationResult,
-    GeocodeRequest, GeocodeResponse, MapsServiceClient, ReverseGeocodeRequest,
-    ReverseGeocodeResponse, Route, TextSearchRequest, TextSearchResponse, TimeZoneRequest,
-    TimeZoneResponse,
+    DirectionsRequest, DirectionsResponse, DistanceMatrixElement, DistanceMatrixRequest,
+    DistanceMatrixResponse, DistanceMatrixRow, ElevationRequest, ElevationResponse, ElevationResult,
+    GeoResult, GeocodeRequest, GeocodeResponse, LatLng, MapsServiceClient, Place,
+    PlacesAutocompleteRequest, PlacesAutocompleteResponse, PlacesNearbyRequest, PlacesNearbyResponse,
+    Prediction, ReverseGeocodeRequest, ReverseGeocodeResponse, Route, TextSearchRequest,
+    TextSearchResponse, TimeZoneRequest, TimeZoneResponse,
 };
 
 // The SERVER lives behind `_server` (enabled by `worker`/`native`) — it's the
@@ -64,10 +66,13 @@ mod server {
     use worker::send::IntoSendFuture;
 
     use crate::proto::maps::v1::{
-        DirectionsResponse, ElevationResponse, ElevationResult, GeoResult, GeocodeResponse,
-        MapsService, OwnedDirectionsRequestView, OwnedElevationRequestView, OwnedGeocodeRequestView,
+        DirectionsResponse, DistanceMatrixElement, DistanceMatrixResponse, DistanceMatrixRow,
+        ElevationResponse, ElevationResult, GeoResult, GeocodeResponse, MapsService,
+        OwnedDirectionsRequestView, OwnedDistanceMatrixRequestView, OwnedElevationRequestView,
+        OwnedGeocodeRequestView, OwnedPlacesAutocompleteRequestView, OwnedPlacesNearbyRequestView,
         OwnedReverseGeocodeRequestView, OwnedTextSearchRequestView, OwnedTimeZoneRequestView,
-        Place as PbPlace, ReverseGeocodeResponse, Route, TextSearchResponse, TimeZoneResponse,
+        Place as PbPlace, PlacesAutocompleteResponse, PlacesNearbyResponse, Prediction,
+        ReverseGeocodeResponse, Route, TextSearchResponse, TimeZoneResponse,
     };
 
     // The only per-target difference: Cloudflare's `worker::Fetch` futures are
@@ -178,6 +183,8 @@ mod server {
                         duration: leg.map(|l| l.duration.text.clone()).unwrap_or_default(),
                         start_address: leg.map(|l| l.start_address.clone()).unwrap_or_default(),
                         end_address: leg.map(|l| l.end_address.clone()).unwrap_or_default(),
+                        distance_meters: leg.map(|l| l.distance.value).unwrap_or_default(),
+                        duration_seconds: leg.map(|l| l.duration.value.num_seconds()).unwrap_or_default(),
                         ..Default::default()
                     }
                 })
@@ -254,17 +261,125 @@ mod server {
                 .response()
                 .places()
                 .iter()
-                .map(|p| PbPlace {
-                    display_name: p.display_name.as_ref().map(|d| d.text.clone()).unwrap_or_default(),
-                    formatted_address: p.formatted_address.clone().unwrap_or_default(),
-                    ..Default::default()
-                })
+                .map(place_to_pb)
                 .collect();
 
             Ok(Response::new(TextSearchResponse {
                 places,
                 ..Default::default()
             }))
+        }
+
+        async fn distance_matrix(
+            &self,
+            _ctx: RequestContext,
+            request: OwnedDistanceMatrixRequestView,
+        ) -> ServiceResult<DistanceMatrixResponse> {
+            // Origins/destinations arrive as coordinates (clients geocode first).
+            let origins = request
+                .origins
+                .iter()
+                .map(|p| LatLng::try_from_f64(p.latitude, p.longitude))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+            let destinations = request
+                .destinations
+                .iter()
+                .map(|p| LatLng::try_from_f64(p.latitude, p.longitude))
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            let response = exec_await!(self
+                .client
+                .distance_matrix(origins, destinations)
+                .execute())
+            .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            let rows = response
+                .rows
+                .iter()
+                .map(|row| DistanceMatrixRow {
+                    elements: row
+                        .elements
+                        .iter()
+                        .map(|el| DistanceMatrixElement {
+                            distance_meters: el.distance.as_ref().map(|d| d.value).unwrap_or_default(),
+                            duration_seconds: el
+                                .duration
+                                .as_ref()
+                                .map(|d| d.value.num_seconds())
+                                .unwrap_or_default(),
+                            status: format!("{:?}", el.status),
+                            ..Default::default()
+                        })
+                        .collect(),
+                    ..Default::default()
+                })
+                .collect();
+
+            Ok(Response::new(DistanceMatrixResponse {
+                rows,
+                status: format!("{:?}", response.status),
+                ..Default::default()
+            }))
+        }
+
+        async fn places_autocomplete(
+            &self,
+            _ctx: RequestContext,
+            request: OwnedPlacesAutocompleteRequestView,
+        ) -> ServiceResult<PlacesAutocompleteResponse> {
+            let response = exec_await!(self.client.autocomplete(request.input).execute())
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            let predictions = response
+                .response()
+                .places()
+                .map(|p| Prediction {
+                    description: p.text.text.clone(),
+                    place_id: p.place_id.clone(),
+                    ..Default::default()
+                })
+                .collect();
+
+            Ok(Response::new(PlacesAutocompleteResponse {
+                predictions,
+                ..Default::default()
+            }))
+        }
+
+        async fn places_nearby(
+            &self,
+            _ctx: RequestContext,
+            request: OwnedPlacesNearbyRequestView,
+        ) -> ServiceResult<PlacesNearbyResponse> {
+            // (lat, lng, radius_metres) -> a circular location restriction.
+            let builder = self
+                .client
+                .nearby_search((request.latitude, request.longitude, request.radius_meters))
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+            let response = exec_await!(builder.field_mask(FieldMask::All).execute())
+                .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+            let places = response.iter().map(place_to_pb).collect();
+
+            Ok(Response::new(PlacesNearbyResponse {
+                places,
+                ..Default::default()
+            }))
+        }
+    }
+
+    /// Map a `google_maps` Places (New) `Place` to the slim proto `Place`
+    /// (shared by Text Search and Nearby Search).
+    fn place_to_pb(p: &google_maps::places_new::Place) -> PbPlace {
+        PbPlace {
+            display_name: p.display_name.as_ref().map(|d| d.text.clone()).unwrap_or_default(),
+            formatted_address: p.formatted_address.clone().unwrap_or_default(),
+            latitude: p.location.as_ref().map(|l| l.latitude.to_f64().unwrap_or_default()).unwrap_or_default(),
+            longitude: p.location.as_ref().map(|l| l.longitude.to_f64().unwrap_or_default()).unwrap_or_default(),
+            place_id: p.id.clone().unwrap_or_default(),
+            ..Default::default()
         }
     }
 }

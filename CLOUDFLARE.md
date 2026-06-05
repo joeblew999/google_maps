@@ -43,7 +43,9 @@ Maps transport as typed Connect RPCs so **any workers-rs project can link it** a
 TS/React client calls it without type drift.
 
 - Proto: `crates/connectrpc/proto/maps/v1/maps.proto` — `Geocode`, `ReverseGeocode`, `Directions`,
-  `TextSearch` (extending it flows to the Rust server, Rust client, and TS client automatically)
+  `Elevation`, `TimeZone`, `TextSearch`, `DistanceMatrix`, `PlacesAutocomplete`, `PlacesNearby`
+  (extending it flows to the Rust server, Rust client, and TS client automatically). `Place` carries
+  lat/lng + place_id; `Route` carries numeric distance_meters/duration_seconds.
 - Server runtime: the [`connectrpc`](https://crates.io/crates/connectrpc) crate's `ConnectRpcService`
   — the same approach as `cf-do-locator` and connyay's
   [example-multitenant-worker](https://github.com/connyay/example-multitenant-worker) (the upstream

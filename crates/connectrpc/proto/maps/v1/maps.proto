@@ -24,6 +24,22 @@ service MapsService {
 
   // Places (New) Text Search: free-text query -> matching places.
   rpc TextSearch(TextSearchRequest) returns (TextSearchResponse);
+
+  // Distance Matrix: N origins x M destinations -> per-pair distance/duration.
+  // Origins/destinations are coordinates (geocode addresses first via Geocode).
+  rpc DistanceMatrix(DistanceMatrixRequest) returns (DistanceMatrixResponse);
+
+  // Places (New) Autocomplete: partial input -> address/place predictions.
+  rpc PlacesAutocomplete(PlacesAutocompleteRequest) returns (PlacesAutocompleteResponse);
+
+  // Places (New) Nearby Search: center + radius -> nearby places.
+  rpc PlacesNearby(PlacesNearbyRequest) returns (PlacesNearbyResponse);
+}
+
+// A WGS84 coordinate, used by requests that take a list of points.
+message LatLng {
+  double latitude = 1;
+  double longitude = 2;
 }
 
 message GeocodeRequest {
@@ -64,10 +80,12 @@ message DirectionsResponse {
 
 message Route {
   string summary = 1;
-  string distance = 2;       // e.g. "450 km" (first leg)
-  string duration = 3;       // e.g. "4 hours 30 mins" (first leg)
+  string distance = 2;       // e.g. "450 km" (first leg) — display string
+  string duration = 3;       // e.g. "4 hours 30 mins" (first leg) — display string
   string start_address = 4;
   string end_address = 5;
+  uint32 distance_meters = 6;   // numeric, for sums/comparisons (first leg)
+  int64 duration_seconds = 7;   // numeric, for sums/comparisons (first leg)
 }
 
 message ElevationRequest {
@@ -111,4 +129,51 @@ message TextSearchResponse {
 message Place {
   string display_name = 1;
   string formatted_address = 2;
+  double latitude = 3;     // so a client can drop a map pin
+  double longitude = 4;
+  string place_id = 5;     // stable id for follow-up lookups
+}
+
+message DistanceMatrixRequest {
+  repeated LatLng origins = 1;
+  repeated LatLng destinations = 2;
+}
+
+message DistanceMatrixResponse {
+  // One row per origin; within a row, one element per destination (same order).
+  repeated DistanceMatrixRow rows = 1;
+  string status = 2;
+}
+
+message DistanceMatrixRow {
+  repeated DistanceMatrixElement elements = 1;
+}
+
+message DistanceMatrixElement {
+  uint32 distance_meters = 1;
+  int64 duration_seconds = 2;
+  string status = 3;   // per-pair status (e.g. "Ok", "ZeroResults", "NotFound")
+}
+
+message PlacesAutocompleteRequest {
+  string input = 1;
+}
+
+message PlacesAutocompleteResponse {
+  repeated Prediction predictions = 1;
+}
+
+message Prediction {
+  string description = 1;   // human-readable suggestion text
+  string place_id = 2;      // feed into a follow-up geocode/details call
+}
+
+message PlacesNearbyRequest {
+  double latitude = 1;
+  double longitude = 2;
+  double radius_meters = 3;
+}
+
+message PlacesNearbyResponse {
+  repeated Place places = 1;
 }
