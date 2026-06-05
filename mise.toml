@@ -14,6 +14,9 @@ python = "3.13"
 # Pinned to the asdf backend; the vfox backend's installer is broken on macOS.
 "asdf:mise-plugins/mise-gcloud" = "latest"
 
+# pnpm — web workspace package manager (web/).
+"npm:pnpm" = "10.15.0"
+
 # Cloudflare Workers CLI: dev + deploys for the example worker. Drives worker-build.
 "npm:wrangler" = "4.97.0"
 
@@ -717,3 +720,37 @@ if ($bin | path exists) {
 print "ConnectRPC example artifact sizes:"
 $rows | print
 '''
+
+
+# =============================================================================
+# web:* — the simple (no-Kumo) reusable web client + demo (web/).
+# @joeblew999/google-maps-connect = a framework-agnostic typed Connect client
+# generated from the SAME maps.proto; point it at any worker URL (shared or
+# project-composed). Kumo/React UI is a deliberately deferred later layer.
+# =============================================================================
+
+[tasks."web:install"]
+description = "Install the web workspace deps (pnpm)."
+dir = "web"
+shell = "nu -c"
+run = "pnpm install"
+
+[tasks."web:gen"]
+description = "Generate the TypeScript Connect client from crates/connectrpc/proto/maps.proto (buf)."
+dir = "web/packages/connect"
+shell = "nu -c"
+run = "pnpm run generate"
+
+[tasks."web:build"]
+description = "Build the reusable client + the vanilla demo (regenerates the client first)."
+dir = "web/demo"
+shell = "nu -c"
+depends = ["web:gen"]
+run = "pnpm run build"
+
+[tasks."web:dev"]
+description = "Run the demo (vite). Enter your worker URL in the page (e.g. the connectrpc-worker from `example:connectrpc:dev`)."
+dir = "web/demo"
+shell = "nu -c"
+depends = ["web:gen"]
+run = "pnpm run dev"

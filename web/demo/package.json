@@ -1,0 +1,15 @@
+{
+  "name": "google-maps-web-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal vanilla-TS demo of the reusable Maps Connect client (no framework, no Kumo).",
+  "type": "module",
+  "scripts": { "dev": "vite", "build": "vite build", "preview": "vite preview --port 5180" },
+  "dependencies": {
+    "@joeblew999/google-maps-connect": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0"
+  }
+}

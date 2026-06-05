@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>google-maps-connect demo</title>
+    <style>
+      body { font: 15px/1.5 system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+      input, button { font: inherit; padding: 0.4rem 0.6rem; }
+      pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow: auto; }
+      @media (prefers-color-scheme: dark) { body { background:#111; color:#eee } pre { background:#1c1c1c } }
+    </style>
+  </head>
+  <body>
+    <h1>Maps Connect (no Kumo) demo</h1>
+    <p>Calls <code>maps.v1.MapsService</code> on the worker URL below — point it at the shared maps worker or your project worker.</p>
+    <p>
+      <input id="url" size="34" value="http://localhost:8806" />
+      <input id="q" size="20" value="Ottawa" placeholder="address" />
+      <button id="go">Geocode</button>
+    </p>
+    <pre id="out">results appear here…</pre>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

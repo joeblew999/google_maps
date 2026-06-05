@@ -1,0 +1,18 @@
+{
+  "name": "@joeblew999/google-maps-connect",
+  "version": "0.1.0",
+  "description": "Framework-agnostic, typed Connect RPC client for the Google Maps connect worker, generated from maps.proto. Point it at any URL: the shared maps worker, or a project worker that composes it.",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "generate": "buf generate" },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.2.0",
+    "@connectrpc/connect": "^2.0.0",
+    "@connectrpc/connect-web": "^2.0.0"
+  },
+  "devDependencies": {
+    "@bufbuild/buf": "^1.50.0",
+    "@bufbuild/protoc-gen-es": "^2.2.0",
+    "typescript": "^5.6.0"
+  }
+}
