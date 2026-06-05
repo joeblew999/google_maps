@@ -42,6 +42,29 @@ The port:
   type `HttpErrorStatus` and its `classify()` arm were reqwest-gated, breaking *all*
   `--no-default-features` builds. Added `#[cfg(feature = "reqwest")]` to the variant.
 
+## ConnectRPC layer (`crates/connectrpc`)
+
+A reusable workspace crate, `google-maps-connectrpc`, exposes the worker transport over
+**typed Connect RPCs** so any workers-rs project can link it and a generated TS/React client can
+call it without drift. Slim `proto/maps/v1/maps.proto` (currently `Geocode` + `TextSearch`) →
+`connectrpc-build` (`build.rs`) for Rust, and ready for `buf`/`protoc-gen-es` for TS. `MapsServer`
+holds a `google_maps::Client` and impls the generated `MapsService`; mount it with
+`Arc::new(MapsServer::new(client)).register(RpcRouter::new())`. Uses `.into_send()` because the
+fork's fetch futures are `!Send` and connectrpc 0.4 needs `Send`.
+
+Key structural points:
+- The repo is now a **workspace** (`[workspace] default-members = ["."]`) so bare native
+  `cargo build`/`test` build ONLY `google_maps` (256 tests, no wasm-only crate); the ConnectRPC
+  crate is built explicitly (`-p google-maps-connectrpc --target wasm32`). Examples are `exclude`d
+  (standalone). The `[workspace]` block is fork-only — keep it out of the upstream worker-feature PR.
+- `protoc` is a mise tool (needed by `connectrpc-build`).
+- `connectrpc`/`buffa` versions pinned to match the joeblew999 connectrpc stack
+  (`cf-do-locator`, `cf-connectrpc-middleware`) so consumers vendor both cleanly.
+- Web/React/Kumo is deferred. The Kumo+React+ConnectRPC reference is
+  `cf-connectrpc-middleware/.src/example-multitenant-worker/web-kumo/` (run `kumo ai` before touching
+  Kumo). There is NO shared web shell package — the reusable web wheels are the npm packages
+  (`@cloudflare/kumo`, `@connectrpc/connect-web`) + codegen; the demo app itself isn't a library.
+
 ## Feature sets
 
 - Verified-good wasm set (`WASM_FEATURES` in `mise.toml`):
@@ -84,6 +107,8 @@ mise run test             # native tests + wasm worker build gate
 mise run test:cf-smoke    # live wrangler smoke test (opt-in, needs network)
 mise run example:dev      # local wrangler dev for examples/worker (ensures key first)
 mise run example:deploy   # deploy the example worker
+mise run example:connectrpc:dev    # local wrangler dev for the ConnectRPC example
+mise run example:connectrpc:deploy # deploy the ConnectRPC example
 ```
 
 Hidden (dev internals): `cargo:*`, `upstream:*`, `cf:check`, `example:build`, `test:native`,
