@@ -143,11 +143,16 @@ Notes:
 
 * The `worker` path has **no rate limiter and no retry** — Cloudflare Workers have no timer,
   so the tokio-based `backon`/`stream_throttle` machinery is omitted.
-* Avoid the `places-new` umbrella, `places-new-autocomplete`, and `places-new-place-details`
-  features on wasm: they pull `uuid` v4, which requires a `js` randomness source on wasm32.
-* A complete, runnable Worker (geocode, reverse geocode, directions, Places text search) lives
-  in [`examples/worker/`](examples/worker). With [`mise`](https://mise.jdx.dev) installed:
-  `mise run example:dev` (local `wrangler dev`) or `mise run test:cf` (wasm build gate).
+* `places-new-autocomplete` and `places-new-place-details` pull `uuid` v4, which needs a `js`
+  randomness source on wasm32 — add `uuid = { version = "1", features = ["js"] }` to your Worker
+  crate (as `examples/worker` does) and they work fine.
+* Legacy `places` is not worker-enabled: it defines the same `Client::text_search`/`nearby_search`
+  as `places-new` and the two can't coexist. Use `places-new` (Google deprecated the legacy API).
+* A runnable Worker with a route for **every** supported API (geocoding, directions,
+  distance matrix, elevation, time zone, roads, address validation, and Places-New
+  text/nearby/autocomplete/place-details) lives in [`examples/worker/`](examples/worker). With
+  [`mise`](https://mise.jdx.dev): `mise run example:dev` (local `wrangler dev`),
+  `mise run test:cf` (wasm build gate), or `mise run test:cf-smoke` (live per-API smoke test).
 
 # Release Notes
 

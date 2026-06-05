@@ -471,7 +471,7 @@ cargo build --target $env.WASM_TARGET --release
 '''
 
 [tasks."test:cf-smoke"]
-description = "Live Cloudflare smoke test: boots `wrangler dev` with a DUMMY key and asserts the worker::Fetch transport round-trips to Google (needs network egress to googleapis.com). Opt-in; not part of `test`."
+description = "Live Cloudflare smoke test for EVERY API: boots `wrangler dev` with a DUMMY key and asserts each route's worker::Fetch transport reaches Google (denied/billing/invalid — proves round-trip). Needs network. Opt-in; not part of `test`."
 dir = "examples/worker"
 shell = "nu -c"
 run = '''
@@ -479,48 +479,70 @@ let log = "/tmp/gmaps-cf-smoke.log"
 "GOOGLE_MAPS_API_KEY=cf-smoke-dummy-key" | save -f .dev.vars
 rm -f $log
 
-# Snapshot existing workerd PIDs so teardown only kills the ones THIS run spawns
-# (wrangler's workerd children outlive `job kill`, so we reap them by diff).
-let workerd_before = (ps | where name =~ "workerd" | get pid)
+# One route per API. With a dummy key each must come back with a Google-side
+# rejection (denied / invalid / billing / permission), which proves the request
+# left the worker via worker::Fetch and Google answered.
+let routes = [
+    "geocode?address=Ottawa"
+    "reverse?lat=45.42&lng=-75.69"
+    "directions?origin=Ottawa&destination=Toronto"
+    "distance-matrix"
+    "elevation"
+    "time-zone"
+    "snap-to-roads"
+    "nearest-roads"
+    "text-search?query=pizza"
+    "autocomplete?input=piz"
+    "nearby-search"
+    "place-details"
+    "validate-address"
+]
+let tokens = ["denied" "api key" "api_key" "permission" "invalid" "billing" "quota" "not authorized" "blocked"]
 
-# Boot wrangler dev in a background job, capturing stdout+stderr.
+# Snapshot workerd PIDs so teardown only kills the ones THIS run spawns.
+let workerd_before = (ps | where name =~ "workerd" | get pid)
 let id = (job spawn { ^wrangler dev --local --port 8799 out+err> $log })
 
-# Wait (up to ~90s) for the server to report ready.
 mut ready = false
 for _ in 1..90 {
     sleep 1sec
     if ($log | path exists) and ((open $log) | str contains "Ready on") { $ready = true; break }
 }
 
-mut failure = ""
+mut failures = []
 if not $ready {
-    $failure = "wrangler dev never became ready"
+    $failures = ["wrangler dev never became ready"]
 } else {
-    # GET path: legacy geocoding returns 200 with status REQUEST_DENIED for a bad key.
-    let geo = (^curl -s "http://localhost:8799/geocode?address=Ottawa")
-    # POST path: Places (New) returns HTTP 400 for a bad key.
-    let txt = (^curl -s "http://localhost:8799/text-search?query=pizza")
-    if not ($geo | str contains "request denied") {
-        $failure = $"GET transport unexpected response: ($geo)"
-    } else if not ($txt | str contains "API key not valid") {
-        $failure = $"POST transport unexpected response: ($txt)"
+    for r in $routes {
+        let name = ($r | split row "?" | first)
+        let body = (^curl -s --max-time 30 $"http://localhost:8799/($r)")
+        let low = ($body | str downcase)
+        let reached = ($tokens | any {|t| $low | str contains $t})
+        if $reached {
+            print $"  ✓ ($name)"
+        } else {
+            print $"  ✗ ($name)"
+            $failures = ($failures | append $"($name): (($body | str substring 0..140))")
+        }
     }
 }
 
-# Teardown: stop the wrangler job, then reap any workerd children it spawned.
+# Teardown: stop the job, reap workerd children by PID diff, then belt-and-suspenders
+# kill anything still bound to this run's port.
 job kill $id
 let workerd_after = (ps | where name =~ "workerd" | get pid)
 $workerd_after | where {|p| $p not-in $workerd_before} | each {|p| do --ignore-errors { ^kill -9 $p } }
+do --ignore-errors { ^pkill -f "localhost:8799" }
 rm -f .dev.vars
 
-if ($failure | is-not-empty) {
-    print $"✗ ($failure)"
-    print "--- wrangler log tail ---"
-    if ($log | path exists) { open $log | lines | last 20 | str join (char nl) | print }
+if ($failures | is-not-empty) {
+    print ""
+    print "✗ Some routes did not reach Google:"
+    $failures | each {|f| print $"  - ($f)" }
+    if ($log | path exists) { print "--- wrangler log tail ---"; open $log | lines | last 15 | str join (char nl) | print }
     exit 1
 }
-print "✓ Cloudflare transport smoke OK — GET (REQUEST_DENIED) and POST (400) both round-tripped via worker::Fetch."
+print $"✓ Cloudflare transport smoke OK — all ($routes | length) API routes round-tripped via worker::Fetch."
 '''
 
 [tasks."test:cf-live"]
@@ -563,6 +585,7 @@ if not $ready {
 job kill $id
 let workerd_after = (ps | where name =~ "workerd" | get pid)
 $workerd_after | where {|p| $p not-in $workerd_before} | each {|p| do --ignore-errors { ^kill -9 $p } }
+do --ignore-errors { ^pkill -f "localhost:8803" }
 rm -f .dev.vars
 
 if ($failure | is-not-empty) {

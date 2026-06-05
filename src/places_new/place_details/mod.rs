@@ -78,9 +78,9 @@
 //! > is contained in the `name` field of the response. The standalone place ID is contained in the
 //! > `id` field of the response.
 
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 mod request;
-#[cfg(feature = "reqwest")]
+#[cfg(any(feature = "reqwest", feature = "worker"))]
 pub use crate::places_new::place_details::request::{Request, RequestBuilder};
 
 mod response;
