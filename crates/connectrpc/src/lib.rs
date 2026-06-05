@@ -45,6 +45,12 @@ pub use crate::proto::maps::v1::MapsServiceExt;
 #[cfg(feature = "_server")]
 pub use server::MapsServer;
 
+// Bearer-token auth layer for the shared server (gate consumers, protect the key).
+#[cfg(feature = "_server")]
+mod token_auth;
+#[cfg(feature = "_server")]
+pub use token_auth::TokenAuthLayer;
+
 #[cfg(feature = "_server")]
 mod server {
     use connectrpc::{ConnectError, RequestContext, Response, ServiceResult};

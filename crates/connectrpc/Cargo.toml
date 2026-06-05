@@ -31,6 +31,8 @@ native = ["_server", "google_maps/reqwest", "google_maps/reqwest-default-tls"]
 _server = [
     "dep:google_maps",
     "dep:chrono",
+    "dep:tower",
+    "dep:pin-project-lite",
     "google_maps/geocoding",
     "google_maps/directions",
     "google_maps/elevation",
@@ -65,6 +67,10 @@ rust_decimal = { version = "1", default-features = false }
 
 # Server-only: build the timestamp for the Time Zone RPC.
 chrono = { version = "0.4", optional = true, default-features = false }
+
+# Server-only: the Bearer-token auth tower::Layer (token_auth).
+tower            = { version = "0.5", optional = true, default-features = false }
+pin-project-lite = { version = "0.2", optional = true }
 
 # The buffa `json` codegen emits serde derives on the generated messages.
 serde      = { version = "1", features = ["derive"] }

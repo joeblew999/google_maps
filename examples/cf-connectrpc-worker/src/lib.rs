@@ -9,9 +9,9 @@
 use std::sync::Arc;
 
 use connectrpc::{ConnectRpcBody, ConnectRpcService, Router as RpcRouter};
-use google_maps_connectrpc::{MapsServer, MapsServiceExt};
+use google_maps_connectrpc::{MapsServer, MapsServiceExt, TokenAuthLayer};
 use http_body_util::Full;
-use tower::Service;
+use tower::{Layer, Service};
 use worker::{Context, Env, HttpRequest, event};
 
 #[event(fetch, respond_with_errors)]
@@ -36,7 +36,11 @@ async fn fetch(
     let client = google_maps::Client::new(env.secret("GOOGLE_MAPS_API_KEY")?.to_string());
 
     let router = Arc::new(MapsServer::new(client)).register(RpcRouter::new());
-    let mut svc = ConnectRpcService::new(router);
+
+    // Gate consumers with a Bearer token (allow-list from the MAPS_TOKENS secret).
+    // Empty/unset = deny all — the safe default for a worker holding a real key.
+    let tokens = env.var("MAPS_TOKENS").map(|v| v.to_string()).unwrap_or_default();
+    let mut svc = TokenAuthLayer::from_list(&tokens).layer(ConnectRpcService::new(router));
 
     svc.call(req)
         .await

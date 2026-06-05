@@ -197,7 +197,11 @@ dir = "examples/cf-connectrpc-worker"
 shell = "nu -c"
 depends = ["secret:google"]
 run = '''
-fnox exec -- nu -c '$"GOOGLE_MAPS_API_KEY=($env.GOOGLE_MAPS_API_KEY)" | save -f .dev.vars'
+# Local dev token (the worker now requires Authorization: Bearer <token>).
+fnox exec -- nu -c '$"GOOGLE_MAPS_API_KEY=($env.GOOGLE_MAPS_API_KEY)\nMAPS_TOKENS=dev-token\n" | save -f .dev.vars'
+print "── ConnectRPC worker (local) ─────────────────────────────"
+print "  http://localhost:8787   header:  Authorization: Bearer dev-token"
+print "──────────────────────────────────────────────────────────"
 wrangler dev --local
 '''
 
@@ -678,11 +682,11 @@ print "✓ native ConnectRPC OK — Geocode RPC round-tripped via reqwest (REQUE
 
 [tasks."test:connectrpc:cf"]
 hide = true
-description = "Cloudflare smoke: wrangler dev the connectrpc-worker with a dummy key, POST Geocode, assert it reaches Google."
+description = "Cloudflare smoke: token gate (no token -> unauthenticated) + valid token -> Geocode reaches Google (dummy key -> REQUEST_DENIED)."
 dir = "examples/cf-connectrpc-worker"
 shell = "nu -c"
 run = '''
-"GOOGLE_MAPS_API_KEY=cf-smoke-dummy-key" | save -f .dev.vars
+"GOOGLE_MAPS_API_KEY=cf-smoke-dummy-key\nMAPS_TOKENS=smoke-token\n" | save -f .dev.vars
 let log = "/tmp/gmaps-connectrpc-cf.log"
 rm -f $log
 let workerd_before = (ps | where name =~ "workerd" | get pid)
@@ -693,8 +697,16 @@ mut failure = ""
 if not $ready {
     $failure = "wrangler dev never became ready"
 } else {
-    let body = (^curl -s --max-time 30 -X POST "http://localhost:8806/maps.v1.MapsService/Geocode" -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
-    if not (($body | str downcase) | str contains "denied") { $failure = $"unexpected response: ($body | str substring 0..160)" }
+    let url = "http://localhost:8806/maps.v1.MapsService/Geocode"
+    # 1. No token → the gate must reject (unauthenticated), NEVER reaching Google.
+    let no_tok = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -d '{"address":"Ottawa"}')
+    # 2. Valid token → passes the gate, reaches Google (REQUEST_DENIED on dummy key).
+    let with_tok = (^curl -s --max-time 30 -X POST $url -H "Content-Type: application/json" -H "Authorization: Bearer smoke-token" -d '{"address":"Ottawa"}')
+    if not (($no_tok | str downcase) | str contains "unauthenticated") {
+        $failure = $"token gate did NOT reject untokened request: ($no_tok | str substring 0..160)"
+    } else if not (($with_tok | str downcase) | str contains "denied") {
+        $failure = $"valid-token request did not reach Google: ($with_tok | str substring 0..160)"
+    }
 }
 job kill $id
 let workerd_after = (ps | where name =~ "workerd" | get pid)
@@ -702,7 +714,7 @@ $workerd_after | where {|p| $p not-in $workerd_before} | each {|p| do --ignore-e
 do --ignore-errors { ^pkill -f "localhost:8806" }
 rm -f .dev.vars
 if ($failure | is-not-empty) { print $"✗ ($failure)"; exit 1 }
-print "✓ Cloudflare ConnectRPC OK — Geocode RPC round-tripped via worker::Fetch (REQUEST_DENIED with dummy key)."
+print "✓ Cloudflare ConnectRPC OK — token gate rejects untokened, valid token reaches Google (REQUEST_DENIED)."
 '''
 
 
