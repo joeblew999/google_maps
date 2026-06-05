@@ -42,8 +42,10 @@ Port mechanics:
 `google-maps-connectrpc` wraps the transport in typed Connect RPCs. `MapsServer` holds a
 `google_maps::Client` and impls the generated `MapsService`. Server runtime = the `connectrpc`
 crate's `ConnectRpcService` (the right one for serving on CF — same as connyay's examples;
-`connyay/connectrpc-workers` is the *client* transport, not needed for serving). Uses `.into_send()`
-because the fork's fetch futures are `!Send` and connectrpc 0.4 needs `Send`.
+`connyay/connectrpc-workers` is the *client* transport, not needed for serving). The `connectrpc`
+crate is [`anthropics/connect-rust`](https://github.com/anthropics/connect-rust) — pinned to **0.6.x**
+(latest; serves both native via `axum` and CF Workers from one crate). Uses `.into_send()` because
+the fork's fetch futures are `!Send` and connectrpc requires `Send`.
 
 **Native + Cloudflare from one proto (planned).** `ConnectRpcService` is a `tower::Service`, so the
 same router/service serves natively (axum/hyper, via `into_axum_service()`) or on CF (worker fetch).

@@ -17,7 +17,7 @@ google_maps = { path = "../..", default-features = false, features = [
 
 worker        = { version = "0.8", features = ["http"] }
 worker-macros = { version = "0.8", features = ["http"] }
-connectrpc    = { version = "0.4", default-features = false }
+connectrpc    = { version = "0.6", default-features = false }
 
 # HTTP plumbing for the ConnectRPC body + landing page.
 http           = "1"
