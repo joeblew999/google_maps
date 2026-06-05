@@ -78,12 +78,28 @@ Consumers (e.g. **remy-sport** and other joeblew999 projects) depend on it via C
 google-maps-connectrpc = { git = "https://github.com/joeblew999/google_maps" }
 ```
 
-## 3. Cloudflare Kumo + React (soon)
+## 3. Web — reusable typed client (simple, no Kumo)
 
-The proto is codegen-ready for a typed TypeScript/React client. The plan is a `web-kumo/` page using
-`@cloudflare/kumo` + `@connectrpc/connect-web` against types generated from `maps.proto` — reusing the
-npm packages + codegen, no app copying. Reference shape:
-`cf-connectrpc-middleware/.src/example-multitenant-worker/web-kumo/`. (Not built yet.)
+[`web/packages/connect`](web/packages/connect) (`@joeblew999/google-maps-connect`) is a
+**framework-agnostic** typed Connect client generated from the *same* `maps.proto`.
+`createMapsClient(baseUrl)` returns a typed client usable from a browser, Node, or another Worker.
+A minimal vanilla-TS demo is in [`web/demo`](web/demo) — no React, no Kumo.
+
+```
+mise run web:dev      # vite dev (enter a worker URL in the page)
+mise run web:build    # regenerate client + build
+mise run web:gen      # regenerate the client from maps.proto
+```
+
+**Composition (the point):**
+- **worker → worker:** another Rust project (CF or native) calls the maps worker via the generated
+  *Rust* Connect client (connect-rust's worker client transport for CF-to-CF, native client otherwise).
+- **web → worker:** point `createMapsClient(url)` at the **shared maps worker directly**, or at a
+  **project worker that composes** maps into its own API.
+
+**Deferred:** a Kumo + React component layer on top, once the shared Kumo+ConnectRPC setup matures.
+The client is intentionally UI-free so any framework reuses it; Kumo is an additive layer, not a
+prerequisite.
 
 ---
 
