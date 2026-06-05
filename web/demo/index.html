@@ -39,6 +39,16 @@
     <h2>Time zone</h2>
     <div class="row"><input id="tzlat" size="10" value="45.4215" /><input id="tzlng" size="10" value="-75.6972" /><button id="timezone">Time zone</button></div>
 
+    <h2>Distance matrix <small>(origin → destination, coords)</small></h2>
+    <div class="row"><input id="dmolat" size="9" value="45.4215" /><input id="dmolng" size="9" value="-75.6972" /> →
+      <input id="dmdlat" size="9" value="43.6532" /><input id="dmdlng" size="9" value="-79.3832" /><button id="distancematrix">Distance</button></div>
+
+    <h2>Places autocomplete</h2>
+    <div class="row"><input id="acinput" size="28" value="sydney opera" /><button id="autocomplete">Autocomplete</button></div>
+
+    <h2>Places nearby <small>(center + radius m)</small></h2>
+    <div class="row"><input id="nblat" size="10" value="45.4215" /><input id="nblng" size="10" value="-75.6972" /><input id="nbradius" size="6" value="500" /><button id="nearby">Nearby</button></div>
+
     <h2>Result</h2>
     <pre id="out">results appear here…</pre>
     <script type="module" src="/src/main.ts"></script>

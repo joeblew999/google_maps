@@ -7,7 +7,13 @@ const client = () => createMapsClient($("url").value, $("token").value || undefi
 async function run(call: () => Promise<unknown>) {
   out.textContent = "calling…";
   try {
-    out.textContent = JSON.stringify(await call(), null, 2);
+    // int64 proto fields (e.g. durationSeconds) come back as JS BigInt, which
+    // JSON.stringify can't serialize — render them as strings.
+    out.textContent = JSON.stringify(
+      await call(),
+      (_k, v) => (typeof v === "bigint" ? v.toString() : v),
+      2,
+    );
   } catch (e) {
     out.textContent = "error: " + (e as Error).message;
   }
@@ -24,3 +30,15 @@ on("directions", () =>
 on("textsearch", () => client().textSearch({ query: $("query").value }));
 on("elevation", () => client().elevation({ latitude: +$("elat").value, longitude: +$("elng").value }));
 on("timezone", () => client().timeZone({ latitude: +$("tzlat").value, longitude: +$("tzlng").value }));
+on("distancematrix", () =>
+  client().distanceMatrix({
+    origins: [{ latitude: +$("dmolat").value, longitude: +$("dmolng").value }],
+    destinations: [{ latitude: +$("dmdlat").value, longitude: +$("dmdlng").value }],
+  }));
+on("autocomplete", () => client().placesAutocomplete({ input: $("acinput").value }));
+on("nearby", () =>
+  client().placesNearby({
+    latitude: +$("nblat").value,
+    longitude: +$("nblng").value,
+    radiusMeters: +$("nbradius").value,
+  }));
