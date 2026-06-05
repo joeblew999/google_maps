@@ -1,3 +1,13 @@
+# Workspace: the root google_maps library + the reusable ConnectRPC layer.
+# `default-members = ["."]` keeps bare `cargo build`/`test` native-only (just the
+# library) so the upstream workflow + 256 tests are unaffected; the wasm-only
+# ConnectRPC crate is built explicitly (`-p google-maps-connectrpc --target wasm32`).
+# Examples are excluded so they keep their own standalone lockfiles.
+[workspace]
+members = ["crates/connectrpc"]
+default-members = ["."]
+exclude = ["examples/worker", "examples/connectrpc-worker"]
+
 [package]
 name = "google_maps"
 version = "3.9.6"

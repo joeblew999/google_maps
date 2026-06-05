@@ -1,0 +1,14 @@
+name = "google-maps-connectrpc-worker-example"
+main = "build/worker/shim.mjs"
+compatibility_date = "2026-05-01"
+
+[build]
+command = "cargo install -q \"worker-build@^0.8\" && worker-build --release"
+
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# GOOGLE_MAPS_API_KEY is a secret:
+#   - local dev: written to .dev.vars from fnox by `mise run example:connectrpc:dev`
+#   - prod:      fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY

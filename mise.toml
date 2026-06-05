@@ -20,6 +20,9 @@ python = "3.13"
 # Rust → wasm32 bundler invoked by wrangler.
 "cargo:worker-build" = "latest"
 
+# protoc — required by connectrpc-build to compile the ConnectRPC layer's .proto.
+"aqua:protocolbuffers/protobuf/protoc" = "latest"
+
 # Dev-quality tools.
 "cargo:cargo-machete" = "latest"
 
@@ -181,6 +184,22 @@ wrangler dev --local
 [tasks."example:deploy"]
 description = "Deploy the example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
 dir = "examples/worker"
+shell = "nu -c"
+run = "fnox exec -- wrangler deploy"
+
+[tasks."example:connectrpc:dev"]
+description = "Run the ConnectRPC example worker locally (typed Connect RPCs over the maps transport)."
+dir = "examples/connectrpc-worker"
+shell = "nu -c"
+depends = ["secret:google"]
+run = '''
+fnox exec -- nu -c '$"GOOGLE_MAPS_API_KEY=($env.GOOGLE_MAPS_API_KEY)" | save -f .dev.vars'
+wrangler dev --local
+'''
+
+[tasks."example:connectrpc:deploy"]
+description = "Deploy the ConnectRPC example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
+dir = "examples/connectrpc-worker"
 shell = "nu -c"
 run = "fnox exec -- wrangler deploy"
 
@@ -466,7 +485,10 @@ description = "Cloudflare build gate: compile the lib AND the example worker for
 shell = "nu -c"
 run = '''
 cargo build --target $env.WASM_TARGET --no-default-features --features $"worker,($env.WASM_FEATURES)"
+cargo build -p google-maps-connectrpc --target $env.WASM_TARGET
 cd examples/worker
+cargo build --target $env.WASM_TARGET --release
+cd ../connectrpc-worker
 cargo build --target $env.WASM_TARGET --release
 '''
 

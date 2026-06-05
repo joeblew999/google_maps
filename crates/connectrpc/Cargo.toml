@@ -1,0 +1,45 @@
+[package]
+name = "google-maps-connectrpc"
+version = "0.1.0"
+edition = "2021"
+description = "Reusable ConnectRPC facade over the google_maps Cloudflare Workers transport. Link this from any workers-rs project to expose Google Maps over typed Connect RPCs."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/joeblew999/google_maps"
+publish = false
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+# The fork, built with the Cloudflare Workers transport.
+google_maps = { path = "../..", default-features = false, features = [
+    "worker",
+    "geocoding",
+    "places-new-core",
+    "places-new-text-search",
+] }
+
+# ConnectRPC + protobuf runtime. Versions pinned to match the joeblew999
+# connectrpc middleware/services stack so consumers can vendor both cleanly.
+connectrpc = { version = "0.4", default-features = false }
+buffa      = { version = "0.5", features = ["json"] }
+
+# Workers runtime (for `worker::send::IntoSendFuture` — google_maps' fetch
+# futures are !Send, and connectrpc 0.4 requires Send).
+worker = { version = "0.8", features = ["http"] }
+
+# HTTP plumbing referenced by the generated connectrpc service code.
+http           = "1"
+http-body      = "1"
+http-body-util = "0.1"
+bytes          = "1.5"
+
+# Decimal → f64 for coordinate conversion.
+rust_decimal = { version = "1", default-features = false }
+
+# The buffa `json` codegen emits serde derives on the generated messages.
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[build-dependencies]
+connectrpc-build = { version = "0.4" }

@@ -1,0 +1,35 @@
+[package]
+name = "google-maps-connectrpc-worker-example"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Example Cloudflare Worker mounting the reusable google-maps-connectrpc service (typed Connect RPCs over the google_maps worker transport)."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# The reusable ConnectRPC facade + the fork (for Client::new).
+google-maps-connectrpc = { path = "../../crates/connectrpc" }
+google_maps = { path = "../..", default-features = false, features = [
+    "worker", "geocoding", "places-new-core", "places-new-text-search",
+] }
+
+worker        = { version = "0.8", features = ["http"] }
+worker-macros = { version = "0.8", features = ["http"] }
+connectrpc    = { version = "0.4", default-features = false }
+
+# HTTP plumbing for the ConnectRPC body + landing page.
+http           = "1"
+http-body-util = "0.1"
+bytes          = "1.5"
+tower          = { version = "0.5", default-features = false, features = ["util"] }
+futures        = "0.3"
+# OS RNG on wasm32 (uuid/entropy via transitive deps).
+getrandom      = { version = "0.2", features = ["js"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
