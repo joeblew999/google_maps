@@ -161,19 +161,19 @@ run = "fnox exec -- wrangler whoami"
 
 
 # =============================================================================
-# example:* — the worker example (examples/worker) that exercises the transport
+# example:* — the simple REST example (examples/rest-worker) that exercises the transport
 # =============================================================================
 
 [tasks."example:build"]
 hide = true
 description = "Build the example worker to wasm (worker-build, release)"
-dir = "examples/worker"
+dir = "examples/rest-worker"
 shell = "nu -c"
 run = "worker-build --release"
 
 [tasks."example:dev"]
 description = "Run the example worker locally. Ensures the API key exists, writes .dev.vars from fnox, then starts wrangler dev."
-dir = "examples/worker"
+dir = "examples/rest-worker"
 shell = "nu -c"
 depends = ["secret:google"]
 run = '''
@@ -183,7 +183,7 @@ wrangler dev --local
 
 [tasks."example:deploy"]
 description = "Deploy the example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
-dir = "examples/worker"
+dir = "examples/rest-worker"
 shell = "nu -c"
 run = "fnox exec -- wrangler deploy"
 
@@ -486,7 +486,7 @@ shell = "nu -c"
 run = '''
 cargo build --target $env.WASM_TARGET --no-default-features --features $"worker,($env.WASM_FEATURES)"
 cargo build -p google-maps-connectrpc --target $env.WASM_TARGET
-cd examples/worker
+cd examples/rest-worker
 cargo build --target $env.WASM_TARGET --release
 cd ../connectrpc-worker
 cargo build --target $env.WASM_TARGET --release
@@ -494,7 +494,7 @@ cargo build --target $env.WASM_TARGET --release
 
 [tasks."test:cf-smoke"]
 description = "Live Cloudflare smoke test for EVERY API: boots `wrangler dev` with a DUMMY key and asserts each route's worker::Fetch transport reaches Google (denied/billing/invalid — proves round-trip). Needs network. Opt-in; not part of `test`."
-dir = "examples/worker"
+dir = "examples/rest-worker"
 shell = "nu -c"
 run = '''
 let log = "/tmp/gmaps-cf-smoke.log"
@@ -569,7 +569,7 @@ print $"✓ Cloudflare transport smoke OK — all ($routes | length) API routes 
 
 [tasks."test:cf-live"]
 description = "Live end-to-end test with the REAL key (from fnox): boots wrangler dev and asserts /text-search returns actual places via worker::Fetch. Needs GOOGLE_MAPS_API_KEY set (mise run secret:google) + network. Opt-in."
-dir = "examples/worker"
+dir = "examples/rest-worker"
 shell = "nu -c"
 run = '''
 let probe = (^fnox get GOOGLE_MAPS_API_KEY | complete)

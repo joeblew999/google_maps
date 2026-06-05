@@ -1,4 +1,4 @@
-name = "google-maps-worker-example"
+name = "google-maps-rest-worker-example"
 main = "build/worker/shim.mjs"
 compatibility_date = "2026-05-01"
 
