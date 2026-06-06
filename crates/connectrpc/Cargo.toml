@@ -41,10 +41,14 @@ _server = [
     "google_maps/distance_matrix",
     "google_maps/elevation",
     "google_maps/time_zone",
+    "google_maps/roads",
+    "google_maps/address_validation",
     "google_maps/places-new-core",
     "google_maps/places-new-text-search",
     "google_maps/places-new-autocomplete",
     "google_maps/places-new-nearby-search",
+    "google_maps/places-new-place-details",
+    "google_maps/places-new-place-photos",
 ]
 
 # --- client role (no google_maps) ---

@@ -34,10 +34,12 @@ pub mod proto {
 pub use crate::proto::maps::v1::{
     DirectionsRequest, DirectionsResponse, DistanceMatrixElement, DistanceMatrixRequest,
     DistanceMatrixResponse, DistanceMatrixRow, ElevationRequest, ElevationResponse, ElevationResult,
-    GeoResult, GeocodeRequest, GeocodeResponse, LatLng, MapsServiceClient, Place,
-    PlacesAutocompleteRequest, PlacesAutocompleteResponse, PlacesNearbyRequest, PlacesNearbyResponse,
-    Prediction, ReverseGeocodeRequest, ReverseGeocodeResponse, Route, TextSearchRequest,
-    TextSearchResponse, TimeZoneRequest, TimeZoneResponse,
+    GeoResult, GeocodeRequest, GeocodeResponse, LatLng, MapsServiceClient, NearestRoadsRequest,
+    NearestRoadsResponse, Place, PlaceDetailsRequest, PlaceDetailsResponse, PlacePhotosRequest,
+    PlacePhotosResponse, PlacesAutocompleteRequest, PlacesAutocompleteResponse, PlacesNearbyRequest,
+    PlacesNearbyResponse, Prediction, ReverseGeocodeRequest, ReverseGeocodeResponse, Route,
+    SnapToRoadsRequest, SnapToRoadsResponse, SnappedPoint, TextSearchRequest, TextSearchResponse,
+    TimeZoneRequest, TimeZoneResponse, ValidateAddressRequest, ValidateAddressResponse,
 };
 
 // The SERVER lives behind `_server` (enabled by `worker`/`native`) — it's the

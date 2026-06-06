@@ -42,3 +42,26 @@ on("nearby", () =>
     longitude: +$("nblng").value,
     radiusMeters: +$("nbradius").value,
   }));
+on("placedetails", () => client().placeDetails({ placeId: $("pdid").value }));
+on("placephotos", () =>
+  client().placePhotos({ photoName: $("ppname").value, maxWidthPx: +$("ppwidth").value }));
+on("snaptoroads", () =>
+  client().snapToRoads({
+    path: [
+      { latitude: +$("srlat1").value, longitude: +$("srlng1").value },
+      { latitude: +$("srlat2").value, longitude: +$("srlng2").value },
+    ],
+    interpolate: ($("srinterp") as HTMLInputElement).checked,
+  }));
+on("nearestroads", () =>
+  client().nearestRoads({
+    points: [
+      { latitude: +$("nrlat1").value, longitude: +$("nrlng1").value },
+      { latitude: +$("nrlat2").value, longitude: +$("nrlng2").value },
+    ],
+  }));
+on("validateaddress", () =>
+  client().validateAddress({
+    addressLines: [$("valines").value],
+    regionCode: $("varegion").value,
+  }));

@@ -49,6 +49,24 @@
     <h2>Places nearby <small>(center + radius m)</small></h2>
     <div class="row"><input id="nblat" size="10" value="45.4215" /><input id="nblng" size="10" value="-75.6972" /><input id="nbradius" size="6" value="500" /><button id="nearby">Nearby</button></div>
 
+    <h2>Place details <small>(place_id → enriched place + photo_names)</small></h2>
+    <div class="row"><input id="pdid" size="34" value="ChIJ3S-JXmauEmsRUcIaWtf4MzE" /><button id="placedetails">Details</button></div>
+
+    <h2>Place photos <small>(photo_name from a place → URI)</small></h2>
+    <div class="row"><input id="ppname" size="40" placeholder="places/…/photos/…" /><input id="ppwidth" size="6" value="400" /><button id="placephotos">Photo URI</button></div>
+
+    <h2>Snap to roads <small>(GPS path → snapped points)</small></h2>
+    <div class="row"><input id="srlat1" size="9" value="45.4215" /><input id="srlng1" size="9" value="-75.6972" /> ·
+      <input id="srlat2" size="9" value="45.4250" /><input id="srlng2" size="9" value="-75.6950" />
+      <label><input id="srinterp" type="checkbox" /> interpolate</label><button id="snaptoroads">Snap</button></div>
+
+    <h2>Nearest roads <small>(points → nearest road)</small></h2>
+    <div class="row"><input id="nrlat1" size="9" value="45.4215" /><input id="nrlng1" size="9" value="-75.6972" />
+      <input id="nrlat2" size="9" value="45.4250" /><input id="nrlng2" size="9" value="-75.6950" /><button id="nearestroads">Nearest</button></div>
+
+    <h2>Validate address <small>(lines + region → verdict)</small></h2>
+    <div class="row"><input id="valines" size="40" value="1600 Amphitheatre Pkwy, Mountain View, CA" /><input id="varegion" size="4" value="US" /><button id="validateaddress">Validate</button></div>
+
     <h2>Result</h2>
     <pre id="out">results appear here…</pre>
     <script type="module" src="/src/main.ts"></script>

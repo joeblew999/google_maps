@@ -186,6 +186,20 @@ pub enum Error {
 
 // -----------------------------------------------------------------------------
 
+// Several generic builder entry points (e.g. `place_photos_uri`) bound their
+// input as `P: TryInto<X>, P::Error: Into<crate::Error>`. Passing an owned/borrowed
+// string uses a `From`-based conversion whose `TryInto::Error` is `Infallible`, so
+// that bound requires `Error: From<Infallible>`. `Infallible` can never be
+// constructed, so this is a total, zero-cost conversion — and it makes those
+// string-input call sites usable. (Upstreamable: additive, no behaviour change.)
+impl std::convert::From<std::convert::Infallible> for Error {
+    fn from(value: std::convert::Infallible) -> Self {
+        match value {}
+    } // fn
+} // impl
+
+// -----------------------------------------------------------------------------
+
 #[cfg(feature = "reqwest")]
 #[derive(Clone, Debug, Diagnostic, Error)]
 #[diagnostic(url(docsrs))]

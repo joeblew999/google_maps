@@ -1,6 +1,6 @@
-//! Places (New) RPCs: text search, autocomplete, and nearby search.
-//! These share a `Place` mapping, so they live together (mirroring upstream's
-//! `src/places_new/`).
+//! Places (New) RPCs: text search, autocomplete, nearby search, place details,
+//! and place photos. These share the slim `Place` mapping, so they live together
+//! (mirroring upstream's `src/places_new/`).
 
 use connectrpc::{ConnectError, Response, ServiceResult};
 use google_maps::Client;
@@ -9,9 +9,10 @@ use rust_decimal::prelude::ToPrimitive;
 
 use super::exec_await;
 use crate::proto::maps::v1::{
-    OwnedPlacesAutocompleteRequestView, OwnedPlacesNearbyRequestView, OwnedTextSearchRequestView,
-    Place as PbPlace, PlacesAutocompleteResponse, PlacesNearbyResponse, Prediction,
-    TextSearchResponse,
+    OwnedPlaceDetailsRequestView, OwnedPlacePhotosRequestView, OwnedPlacesAutocompleteRequestView,
+    OwnedPlacesNearbyRequestView, OwnedTextSearchRequestView, Place as PbPlace,
+    PlaceDetailsResponse, PlacePhotosResponse, PlacesAutocompleteResponse, PlacesNearbyResponse,
+    Prediction, TextSearchResponse,
 };
 
 pub(super) async fn text_search(
@@ -65,8 +66,43 @@ pub(super) async fn nearby(
     Ok(Response::new(PlacesNearbyResponse { places, ..Default::default() }))
 }
 
-/// Map a `google_maps` Places (New) `Place` to the slim proto `Place`
-/// (shared by Text Search and Nearby Search).
+pub(super) async fn place_details(
+    client: &Client,
+    request: OwnedPlaceDetailsRequestView,
+) -> ServiceResult<PlaceDetailsResponse> {
+    let builder = client
+        .place_details(request.place_id)
+        .map_err(|error| ConnectError::internal(error.to_string()))?;
+    let response = exec_await!(builder.field_mask(FieldMask::All).execute())
+        .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+    // `Response` derefs to `Place`, so `&response` coerces to `&Place`.
+    Ok(Response::new(PlaceDetailsResponse {
+        place: Some(place_to_pb(&response)).into(),
+        ..Default::default()
+    }))
+}
+
+pub(super) async fn place_photos(
+    client: &Client,
+    request: OwnedPlacePhotosRequestView,
+) -> ServiceResult<PlacePhotosResponse> {
+    let max_width = if request.max_width_px > 0 { request.max_width_px } else { 400 };
+    let builder = client
+        .place_photos_uri(request.photo_name)
+        .map_err(|error| ConnectError::internal(error.to_string()))?;
+    let response = exec_await!(builder.max_width_px(max_width).execute())
+        .map_err(|error| ConnectError::internal(error.to_string()))?;
+
+    Ok(Response::new(PlacePhotosResponse {
+        photo_uri: response.uri.to_string(),
+        ..Default::default()
+    }))
+}
+
+/// Map a `google_maps` Places (New) `Place` to the slim proto `Place`. Shared by
+/// Text Search, Nearby Search, and Place Details (phone/website/rating/photos are
+/// only populated when the field mask + the endpoint return them).
 fn place_to_pb(p: &google_maps::places_new::Place) -> PbPlace {
     PbPlace {
         display_name: p.display_name.as_ref().map(|d| d.text.clone()).unwrap_or_default(),
@@ -74,6 +110,10 @@ fn place_to_pb(p: &google_maps::places_new::Place) -> PbPlace {
         latitude: p.location.as_ref().map(|l| l.latitude.to_f64().unwrap_or_default()).unwrap_or_default(),
         longitude: p.location.as_ref().map(|l| l.longitude.to_f64().unwrap_or_default()).unwrap_or_default(),
         place_id: p.id.clone().unwrap_or_default(),
+        phone_number: p.international_phone_number.clone().unwrap_or_default(),
+        website_uri: p.website_uri.as_ref().map(|u| u.as_str().to_string()).unwrap_or_default(),
+        rating: p.rating.unwrap_or_default(),
+        photo_names: p.photos.iter().map(|ph| ph.name.clone()).collect(),
         ..Default::default()
     }
 }

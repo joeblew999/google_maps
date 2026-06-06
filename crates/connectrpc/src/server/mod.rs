@@ -11,18 +11,23 @@ use google_maps::Client;
 
 use crate::proto::maps::v1::{
     DirectionsResponse, DistanceMatrixResponse, ElevationResponse, GeocodeResponse, MapsService,
-    OwnedDirectionsRequestView, OwnedDistanceMatrixRequestView, OwnedElevationRequestView,
-    OwnedGeocodeRequestView, OwnedPlacesAutocompleteRequestView, OwnedPlacesNearbyRequestView,
-    OwnedReverseGeocodeRequestView, OwnedTextSearchRequestView, OwnedTimeZoneRequestView,
-    PlacesAutocompleteResponse, PlacesNearbyResponse, ReverseGeocodeResponse, TextSearchResponse,
-    TimeZoneResponse,
+    NearestRoadsResponse, OwnedDirectionsRequestView, OwnedDistanceMatrixRequestView,
+    OwnedElevationRequestView, OwnedGeocodeRequestView, OwnedNearestRoadsRequestView,
+    OwnedPlaceDetailsRequestView, OwnedPlacePhotosRequestView, OwnedPlacesAutocompleteRequestView,
+    OwnedPlacesNearbyRequestView, OwnedReverseGeocodeRequestView, OwnedSnapToRoadsRequestView,
+    OwnedTextSearchRequestView, OwnedTimeZoneRequestView, OwnedValidateAddressRequestView,
+    PlaceDetailsResponse, PlacePhotosResponse, PlacesAutocompleteResponse, PlacesNearbyResponse,
+    ReverseGeocodeResponse, SnapToRoadsResponse, TextSearchResponse, TimeZoneResponse,
+    ValidateAddressResponse,
 };
 
+mod address_validation;
 mod directions;
 mod distance_matrix;
 mod elevation;
 mod geocoding;
 mod places;
+mod roads;
 mod time_zone;
 
 /// ConnectRPC service backed by a `google_maps::Client`.
@@ -108,6 +113,46 @@ impl MapsService for MapsServer {
         request: OwnedPlacesNearbyRequestView,
     ) -> ServiceResult<PlacesNearbyResponse> {
         places::nearby(&self.client, request).await
+    }
+
+    async fn place_details(
+        &self,
+        _ctx: RequestContext,
+        request: OwnedPlaceDetailsRequestView,
+    ) -> ServiceResult<PlaceDetailsResponse> {
+        places::place_details(&self.client, request).await
+    }
+
+    async fn place_photos(
+        &self,
+        _ctx: RequestContext,
+        request: OwnedPlacePhotosRequestView,
+    ) -> ServiceResult<PlacePhotosResponse> {
+        places::place_photos(&self.client, request).await
+    }
+
+    async fn snap_to_roads(
+        &self,
+        _ctx: RequestContext,
+        request: OwnedSnapToRoadsRequestView,
+    ) -> ServiceResult<SnapToRoadsResponse> {
+        roads::snap_to_roads(&self.client, request).await
+    }
+
+    async fn nearest_roads(
+        &self,
+        _ctx: RequestContext,
+        request: OwnedNearestRoadsRequestView,
+    ) -> ServiceResult<NearestRoadsResponse> {
+        roads::nearest_roads(&self.client, request).await
+    }
+
+    async fn validate_address(
+        &self,
+        _ctx: RequestContext,
+        request: OwnedValidateAddressRequestView,
+    ) -> ServiceResult<ValidateAddressResponse> {
+        address_validation::validate_address(&self.client, request).await
     }
 }
 

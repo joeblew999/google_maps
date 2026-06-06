@@ -34,6 +34,21 @@ service MapsService {
 
   // Places (New) Nearby Search: center + radius -> nearby places.
   rpc PlacesNearby(PlacesNearbyRequest) returns (PlacesNearbyResponse);
+
+  // Places (New) Place Details: place_id -> a single enriched place.
+  rpc PlaceDetails(PlaceDetailsRequest) returns (PlaceDetailsResponse);
+
+  // Places (New) Place Photos: a photo resource name -> a temporary media URI.
+  rpc PlacePhotos(PlacePhotosRequest) returns (PlacePhotosResponse);
+
+  // Roads Snap To Roads: a GPS path -> points snapped to the road network.
+  rpc SnapToRoads(SnapToRoadsRequest) returns (SnapToRoadsResponse);
+
+  // Roads Nearest Roads: points -> the nearest road segment for each.
+  rpc NearestRoads(NearestRoadsRequest) returns (NearestRoadsResponse);
+
+  // Address Validation: address lines + region -> verdict + standardized address.
+  rpc ValidateAddress(ValidateAddressRequest) returns (ValidateAddressResponse);
 }
 
 // A WGS84 coordinate, used by requests that take a list of points.
@@ -132,6 +147,10 @@ message Place {
   double latitude = 3;     // so a client can drop a map pin
   double longitude = 4;
   string place_id = 5;     // stable id for follow-up lookups
+  string phone_number = 6; // international format (populated by PlaceDetails)
+  string website_uri = 7;
+  double rating = 8;       // 1.0–5.0, 0 if unknown
+  repeated string photo_names = 9;  // feed one into PlacePhotos to get a URI
 }
 
 message DistanceMatrixRequest {
@@ -176,4 +195,57 @@ message PlacesNearbyRequest {
 
 message PlacesNearbyResponse {
   repeated Place places = 1;
+}
+
+message PlaceDetailsRequest {
+  string place_id = 1;
+}
+
+message PlaceDetailsResponse {
+  Place place = 1;
+}
+
+message PlacePhotosRequest {
+  // A photo resource name, e.g. "places/XXX/photos/YYY" (from Place.photo_names).
+  string photo_name = 1;
+  uint32 max_width_px = 2;  // 1–4800; defaults to 400 if 0.
+}
+
+message PlacePhotosResponse {
+  string photo_uri = 1;  // temporary media URL (fetch promptly)
+}
+
+message SnapToRoadsRequest {
+  repeated LatLng path = 1;
+  bool interpolate = 2;  // insert interpolated points along the road geometry
+}
+
+message SnapToRoadsResponse {
+  repeated SnappedPoint snapped_points = 1;
+}
+
+message NearestRoadsRequest {
+  repeated LatLng points = 1;
+}
+
+message NearestRoadsResponse {
+  repeated SnappedPoint snapped_points = 1;
+}
+
+message SnappedPoint {
+  double latitude = 1;
+  double longitude = 2;
+  string place_id = 3;       // the snapped road segment id
+  uint32 original_index = 4; // index into the request points (0 if interpolated)
+}
+
+message ValidateAddressRequest {
+  repeated string address_lines = 1;  // e.g. ["1600 Amphitheatre Pkwy", "Mountain View, CA"]
+  string region_code = 2;             // CLDR/ISO region, e.g. "US", "CA"
+}
+
+message ValidateAddressResponse {
+  string formatted_address = 1;
+  bool address_complete = 2;
+  bool has_unconfirmed_components = 3;
 }
