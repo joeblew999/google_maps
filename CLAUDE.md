@@ -120,7 +120,7 @@ secondary examples, opt-in live tests, dev-loop) is `hide = true` — see them a
 - Tooling: `mise` + `nushell` (OS-neutral; no hardcoded paths). Stack: Rust + nushell — no Python for code.
 - Git: work lands on `feat/cloudflare-workers`; `master` stays = upstream for clean syncing. The user
   has approved ongoing pushes to the feature branch; still ask before pushing to `master` or opening PRs.
-- Upstream backlog: **`docs/UPSTREAM.md`** tracks everything to send upstream (Workers transport #44, two standalone bug-fix PRs, two API-gap reports). Cloudflare issue filed: leontoeides/google_maps#44 (draft in `docs/UPSTREAM_ISSUE.md`).
+- Upstream backlog: **`docs/UPSTREAM.md`** is the index; paste-ready issue drafts (one file each) live in **`docs/upstream/`** (issue-A/B/C + the filed #44). Cloudflare issue filed: leontoeides/google_maps#44.
 
 ## TODO / tracking
 
