@@ -73,11 +73,13 @@ GOOGLE_MAPS_KEY_DISPLAY_NAME = "google_maps-rust-fork"
 # =============================================================================
 
 [tasks."mise:install"]
-description = "Install every CLI tool declared above + the wasm32 target"
+description = "One-shot bootstrap: install every CLI tool, the wasm32 target, and the web deps."
 shell = "nu -c"
 run = '''
 mise install
 rustup target add wasm32-unknown-unknown
+# Web workspace deps (pnpm is installed by `mise install` above).
+cd web; pnpm install
 '''
 
 
@@ -176,6 +178,7 @@ shell = "nu -c"
 run = "worker-build --release"
 
 [tasks."example:dev"]
+hide = true
 description = "Run the example worker locally. Ensures the API key exists, writes .dev.vars from fnox, then starts wrangler dev."
 dir = "examples/cf-rest-worker"
 shell = "nu -c"
@@ -186,6 +189,7 @@ wrangler dev --local
 '''
 
 [tasks."example:deploy"]
+hide = true
 description = "Deploy the example worker. Set the secret first: fnox exec -- wrangler secret put GOOGLE_MAPS_API_KEY"
 dir = "examples/cf-rest-worker"
 shell = "nu -c"
@@ -251,12 +255,14 @@ print "✓ deployed + secrets set. Call with header: Authorization: Bearer <MAPS
 '''
 
 [tasks."example:connectrpc:client:dev"]
+hide = true
 description = "Run the Cloudflare CLIENT example worker (binds over RPC, no google_maps). Set MAPS_URL to the maps worker (default http://localhost:8787)."
 dir = "examples/cf-connectrpc-client-worker"
 shell = "nu -c"
 run = "wrangler dev --local"
 
 [tasks."example:native:dev"]
+hide = true
 description = "Run the native (axum) ConnectRPC server locally. Ensures the API key, exports it, then serves on 127.0.0.1:8080."
 dir = "examples/native-connectrpc"
 shell = "nu -c"
@@ -478,6 +484,7 @@ if $probe.exit_code == 0 {
 # =============================================================================
 
 [tasks."gcloud:billing:list"]
+hide = true
 description = "List your GCP billing accounts with OPEN status, so you can pick one for `gcloud:billing:use`."
 shell = "nu -c"
 run = '^gcloud billing accounts list --format="table(name,displayName,open)"'
@@ -528,6 +535,7 @@ if ($acct | is-empty) {
 '''
 
 [tasks."gcloud:billing:open"]
+hide = true
 description = "Open the GCP billing console to create or reopen a billing account (the one step the CLI can't do)."
 shell = "nu -c"
 run = 'start "https://console.cloud.google.com/billing"'
@@ -583,6 +591,7 @@ cargo build --target $env.WASM_TARGET --release
 '''
 
 [tasks."test:cf-smoke"]
+hide = true
 description = "Live Cloudflare smoke test for EVERY API: boots `wrangler dev` with a DUMMY key and asserts each route's worker::Fetch transport reaches Google (denied/billing/invalid — proves round-trip). Needs network. Opt-in; not part of `test`."
 dir = "examples/cf-rest-worker"
 shell = "nu -c"
@@ -658,6 +667,7 @@ print $"✓ Cloudflare transport smoke OK — all ($routes | length) API routes 
 '''
 
 [tasks."test:cf-live"]
+hide = true
 description = "Live end-to-end test with the REAL key (from fnox): boots wrangler dev and asserts /text-search returns actual places via worker::Fetch. Needs GOOGLE_MAPS_API_KEY set (mise run secret:google) + network. Opt-in."
 dir = "examples/cf-rest-worker"
 shell = "nu -c"
@@ -794,6 +804,7 @@ print "✓ Cloudflare ConnectRPC OK — token gate rejects untokened, valid toke
 '''
 
 [tasks."test:connectrpc:deployed"]
+hide = true
 description = "Verify the LIVE deployed worker gates traffic (no-token + bad-token -> unauthenticated, $0 to Google). Override URL via MAPS_DEPLOYED_URL."
 shell = "nu -c"
 run = '''
@@ -824,6 +835,7 @@ print $"✓ live gate verified — no-token and bad-token both rejected \(unauth
 # =============================================================================
 
 [tasks."example:connectrpc:sizes"]
+hide = true
 description = "Build (release) + report artifact sizes — shows the composition win: a client worker that BINDS over RPC (no google_maps) is far smaller than the server worker that embeds it."
 shell = "nu -c"
 run = '''
@@ -860,19 +872,22 @@ print "→ A consuming worker binds the CLIENT (tiny); only the shared maps work
 # =============================================================================
 
 [tasks."web:install"]
-description = "Install the web workspace deps (pnpm)."
+hide = true
+description = "Install the web workspace deps (pnpm). Folded into `mise:install`."
 dir = "web"
 shell = "nu -c"
 run = "pnpm install"
 
 [tasks."web:gen"]
-description = "Generate the TypeScript Connect client from crates/connectrpc/proto/maps.proto (buf)."
+hide = true
+description = "Generate the TypeScript Connect client from crates/connectrpc/proto/maps.proto (buf). Run via `proto:gen` / `web:dev` / `web:build`."
 dir = "web/packages/connect"
 shell = "nu -c"
 run = "buf generate"
 
 [tasks."web:build"]
-description = "Build the reusable client + the vanilla demo (regenerates the client first)."
+hide = true
+description = "Build the reusable client + the vanilla demo (regenerates first). Run via `web:deploy`."
 dir = "web/demo"
 shell = "nu -c"
 depends = ["web:gen"]
@@ -910,7 +925,8 @@ $out.stdout | lines | where {|l| ($l | str contains "workers.dev") or ($l | str 
 # =============================================================================
 
 [tasks."proto:lint"]
-description = "Lint the maps proto (the single contract behind the Rust server, Rust client, and TS client)."
+hide = true
+description = "Lint the maps proto (buf). Dev/CI check; `proto:gen` is the everyday command."
 dir = "crates/connectrpc"
 shell = "nu -c"
 run = "buf lint"

@@ -93,16 +93,27 @@ The `[workspace]` block is fork-only — keep it out of any upstream worker-feat
 
 ## Dev cheatsheet
 
-`mise tasks` shows the user-facing surface; dev-loop tasks are `hide = true` (`mise tasks --hidden`).
-- `mise run proto:gen` — regenerate Rust (build.rs) **and** TS (buf) from `maps.proto` in one shot
-- `mise run proto:lint` — `buf lint` the proto contract (STANDARD: unique req/resp per RPC)
-- `cargo test` — native unit tests (library only)
-- `mise run test` — native tests + wasm build gate
-- `mise run test:cf` / `test:cf-smoke` / `test:cf-live` — wasm build gate / dummy-key smoke / real-key live
-- `mise run test:connectrpc` — token-gate smoke on BOTH runtimes (no-token→unauthenticated, valid→Google); dummy key so it never spends
-- `mise run test:connectrpc:deployed` — **billing safety net:** probes the LIVE deployed worker with no-token + bad-token, fails if either is NOT rejected (both are negative → $0 to Google). Also runs automatically at the end of `example:connectrpc:deploy`.
-- `cargo:check:wasm`, `cargo:lint`, `cargo:format`, `cargo:machete`, `cargo:pre-commit` (hidden)
-- `upstream:fetch` / `upstream:sync` (hidden) — keep master tracking upstream; rebase the feature branch
+`mise tasks` shows a **lean operator surface (~14)**, grouped by intent; everything else (sub-steps,
+secondary examples, opt-in live tests, dev-loop) is `hide = true` — see them all with
+`mise tasks --hidden`, and run any of them normally (`mise run <name>`).
+
+**Visible surface:**
+- bootstrap — `mise:install` (tools + wasm target + web deps, one shot), `gcloud:setup`,
+  `secret:google`, `secret:maps-token`, `gcloud:billing:use` / `gcloud:billing:status`, `gcloud:quota:open`
+- codegen — `proto:gen` (Rust build.rs **and** TS buf from `maps.proto` in one shot)
+- test — `test` (native unit tests + wasm build gate), `test:connectrpc` (token-gate smoke on BOTH
+  runtimes, dummy key so it never spends)
+- dev — `example:connectrpc:dev` (the maps worker), `web:dev` (the GUI)
+- deploy — `example:connectrpc:deploy`, `web:deploy`
+
+**Useful hidden ones** (`mise run …`):
+- `proto:lint` — `buf lint` (STANDARD: unique req/resp per RPC)
+- `test:cf-smoke` / `test:cf-live` — dummy-key every-API round-trip / real-key live (opt-in, network)
+- `test:connectrpc:deployed` — billing safety net; auto-runs at the end of `example:connectrpc:deploy`
+- `example:connectrpc:client:dev` (RPC-binding client worker), `example:native:dev` (axum server),
+  `example:connectrpc:sizes`, `example:dev` / `example:deploy` (the REST reference worker)
+- `cargo:check:wasm`, `cargo:lint`, `cargo:format`, `cargo:machete`, `cargo:pre-commit`
+- `upstream:fetch` / `upstream:sync` — keep master tracking upstream; rebase the feature branch
 
 ## Conventions
 
