@@ -13,7 +13,7 @@ Paste-ready issue drafts live in [`docs/upstream/`](./upstream/) — one file ea
 | 1 | Cloudflare Workers (`wasm32`) transport | feature (PR) | **filed** [#44](https://github.com/leontoeides/google_maps/issues/44) | [`issue-44-cloudflare-workers.md`](./upstream/issue-44-cloudflare-workers.md) |
 | A | `--no-default-features` fails to compile (`HttpWithBody` cfg) | **bug** (PR) | **filed** [#45](https://github.com/leontoeides/google_maps/issues/45) | [`issue-A-no-default-features.md`](./upstream/issue-A-no-default-features.md) |
 | B | `place_photos_uri`/`_image` reject string inputs (`From<Infallible>`) | **bug** (PR) | **filed** [#46](https://github.com/leontoeides/google_maps/issues/46) | [`issue-B-place-photos-infallible.md`](./upstream/issue-B-place-photos-infallible.md) |
-| C | Two unreachable endpoints (Roads Speed Limits, Geolocation) | feature gap | ✅ verified · ready (not filed) | [`issue-C-unreachable-endpoints.md`](./upstream/issue-C-unreachable-endpoints.md) |
+| C | Two unreachable endpoints (Roads Speed Limits, Geolocation) | feature gap | **filed** [#47](https://github.com/leontoeides/google_maps/issues/47) | [`issue-C-unreachable-endpoints.md`](./upstream/issue-C-unreachable-endpoints.md) |
 
 A & B are small standalone bug-fix PRs that stand on their own merit regardless of whether upstream
 wants the Workers transport. C is one consolidated "these endpoints are unreachable" report.
