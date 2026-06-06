@@ -1,0 +1,34 @@
+name: upstream-watch
+
+# Weekly check of our filed issues on leontoeides/google_maps (#44–#47) plus
+# upstream releases/commits. `mise run upstream:watch` exits non-zero the moment
+# the maintainer responds or relevant code moves — a failed scheduled run then
+# notifies the repo owner. Run it by hand anytime via the "Run workflow" button.
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Mondays 09:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # need history so the baseline-commit diff resolves
+
+      - uses: jdx/mise-action@v2
+        with:
+          install: false # skip the heavy toolchain — we only need nushell
+          cache: true
+
+      - name: Install nushell only
+        run: mise install "aqua:nushell/nushell"
+
+      - name: Watch upstream issues
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # reads public issues
+        run: mise run upstream:watch | tee "$GITHUB_STEP_SUMMARY"

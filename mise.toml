@@ -102,6 +102,60 @@ git fetch upstream
 git merge upstream/master
 '''
 
+[tasks."upstream:watch"]
+description = "Check our upstream issues (#44–#47) + releases/commits for maintainer activity. Prints a status table; exits 1 if anything changed (so a scheduled CI job fails → you get notified). Needs gh (GH_TOKEN in CI)."
+shell = "nu -c"
+run = '''
+let repo = "leontoeides/google_maps"
+let issues = [44 45 46 47]
+let baseline_release = "v3.9.6"
+let baseline_commit = "9ed6a95"
+mut changed = false
+
+print "── upstream watch ──────────────────────────────────────────"
+for n in $issues {
+    let j = (^gh issue view $n --repo $repo --json number,state,title,comments | from json)
+    let c = ($j.comments | length)
+    let hot = (($j.state != "OPEN") or ($c > 0))
+    if $hot { $changed = true }
+    let mark = (if $hot { "⚠" } else { "·" })
+    print $"($mark) #($j.number) [($j.state)] comments=($c)  ($j.title | str substring 0..46)"
+    for cm in $j.comments {
+        let body = ($cm.body | str replace --all "\n" " " | str substring 0..150)
+        print $"      ↳ ($cm.author.login): ($body)"
+    }
+}
+
+let rel = (^gh repo view $repo --json latestRelease | from json | get -o latestRelease.tagName)
+if ($rel != null) and ($rel != $baseline_release) {
+    $changed = true
+    print $"⚠ new upstream release: ($rel) \(baseline ($baseline_release)\)"
+} else {
+    print $"· release unchanged \(($baseline_release)\)"
+}
+
+# Commits touching the files our issues are about (works in CI too: add+fetch the remote).
+^git remote add upstream https://github.com/leontoeides/google_maps.git | complete | ignore
+^git fetch upstream | complete | ignore
+let touched = (^git log --oneline $"($baseline_commit)..upstream/master" -- src/error.rs src/roads src/geolocation | complete)
+let lines = ($touched.stdout | lines | where {|l| ($l | str trim | is-not-empty)})
+if ($lines | length) > 0 {
+    $changed = true
+    print "⚠ upstream commits touching error.rs / roads / geolocation:"
+    for l in $lines { print $"      ($l)" }
+} else {
+    print "· no upstream commits to error.rs / roads / geolocation"
+}
+
+print "────────────────────────────────────────────────────────────"
+if $changed {
+    print "⚠ CHANGE DETECTED — maintainer responded or relevant code moved. Review above + docs/UPSTREAM.md."
+    exit 1
+} else {
+    print "✓ no change since baseline (all issues open & uncommented, same release/commits)."
+}
+'''
+
 
 # =============================================================================
 # cargo:* — Rust dev loop

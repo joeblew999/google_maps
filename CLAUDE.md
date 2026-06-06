@@ -114,6 +114,7 @@ secondary examples, opt-in live tests, dev-loop) is `hide = true` — see them a
   `example:connectrpc:sizes`, `example:dev` / `example:deploy` (the REST reference worker)
 - `cargo:check:wasm`, `cargo:lint`, `cargo:format`, `cargo:machete`, `cargo:pre-commit`
 - `upstream:fetch` / `upstream:sync` — keep master tracking upstream; rebase the feature branch
+- `upstream:watch` (visible) — status of our filed issues #44–#47 + releases/commits; exits non-zero on any change. Scheduled weekly via `.github/workflows/upstream-watch.yml`; see `docs/UPSTREAM.md`.
 
 ## Conventions
 

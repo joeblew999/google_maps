@@ -33,6 +33,17 @@ fork:
   anywhere** (scanned every `.rs`), so the module is never compiled — no client method, no way to
   reach it, no `geolocation` Cargo feature.
 
+## Monitoring (did he respond?)
+
+`mise run upstream:watch` — prints a status table for #44–#47 + upstream release/commits, and **exits
+non-zero** if anything changed (a comment, a close, a new release, or a commit touching
+`error.rs`/`roads`/`geolocation`). Run it anytime.
+
+Scheduled in CI: **`.github/workflows/upstream-watch.yml`** runs it weekly (Mon 09:00 UTC) + on demand
+("Run workflow"). A change flips the task to a failed run → GitHub notifies the repo owner; the status
+table is written to the run's job summary. Baselines (`v3.9.6`, commit `9ed6a95`, all issues open &
+uncommented) are pinned in the task — bump them after acting on a change so it goes quiet again.
+
 ## This fork's fixes
 
 - Bug **A**: included in the `feat/cloudflare-workers` branch (see the #44 draft).
