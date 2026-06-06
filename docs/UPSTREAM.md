@@ -9,14 +9,26 @@ Upstream: https://github.com/leontoeides/google_maps · fork: https://github.com
 | # | Item | Type | Status | Where |
 |---|------|------|--------|-------|
 | 1 | Cloudflare Workers (`wasm32`) transport | feature (PR) | **filed** [#44](https://github.com/leontoeides/google_maps/issues/44) | `docs/UPSTREAM_ISSUE.md` |
-| 2 | `--no-default-features` fails to compile (`HttpWithBody` cfg) | **bug** (PR) | drafted (in #44) | `src/error.rs` |
-| 3 | `place_photos_uri`/`_image` reject string inputs (`From<Infallible>`) | **bug** (PR) | **to file** | `src/error.rs` |
-| 4 | Roads **Speed Limits** not implemented | feature gap | **to file** | `src/roads/` |
-| 5 | **Geolocation** API has no `Client` method | feature gap | **to file** | `src/geolocation/` |
+| 2 | `--no-default-features` fails to compile (`HttpWithBody` cfg) | **bug** (PR) | ✅ verified · ready | `src/error.rs` |
+| 3 | `place_photos_uri`/`_image` reject string inputs (`From<Infallible>`) | **bug** (PR) | ✅ verified · ready | `src/error.rs` |
+| 4 | Roads **Speed Limits** not implemented | feature gap | ✅ verified · ready | `src/roads/` |
+| 5 | **Geolocation** module orphaned (never declared in `lib.rs`) | feature gap | ✅ verified · ready | `src/geolocation/` |
 
 Items 2 & 3 are small, standalone bug-fix PRs that stand on their own merit regardless of whether
 upstream wants the Workers transport. Items 4 & 5 are "API is incomplete" reports (optionally with
 a PR).
+
+> **Verified against pristine `upstream/master` (commit `9ed6a95`, v3.9.6 — identical to our `master`)
+> on 2026-06-06** via a throwaway worktree, so every claim below reflects current upstream, not our
+> patched fork:
+> - **#2** — `cargo build --no-default-features` fails: `E0425` (cannot find `HttpErrorStatus`) +
+>   `E0004` (non-exhaustive match on `HttpWithBody`).
+> - **#3** — `client.place_photos_uri("places/X/photos/Y")` fails: `E0277` *"the trait bound
+>   `GoogleMapsError: From<Infallible>` is not satisfied"*.
+> - **#4** — `src/roads/mod.rs` says *"(Not yet implemented in this client.)"*; no `Client::speed_limits`.
+> - **#5** — `src/geolocation/{mod,request,response}.rs` exist, but **no `mod geolocation;` anywhere**
+>   (scanned every `.rs`), so the module is never compiled — there's no client method *and no way to
+>   reach it*, and no `geolocation` Cargo feature.
 
 ---
 
@@ -63,12 +75,15 @@ client.)"* — there is no `Client::speed_limits(...)`. (Note: Google restricts 
 Tracking / Premium licenses, so it can't be smoke-tested on a standard key — worth calling out in
 any PR.) Report as a tracked gap; optionally implement following the `snap_to_roads` shape.
 
-## 5. FEATURE GAP — Geolocation API unreachable
+## 5. FEATURE GAP — Geolocation module is orphaned (never compiled)
 
-`src/geolocation/` defines `Request` (with `consider_ip`, cell towers, wifi APs) and `Response`
-(location + accuracy), but there is **no `Client::geolocation()` method** and **no `geolocation`
-feature flag** in `Cargo.toml` — so the Geolocation API can't be called at all. Report as a gap;
-a minimal `consider_ip = true` request would be the smallest useful implementation.
+`src/geolocation/` defines `Request` (`consider_ip`, cell towers, wifi APs) and `Response`
+(`location` + `accuracy`), **but `geolocation` is never declared as a module** — there is no
+`mod geolocation;` anywhere in the crate (verified by scanning every `.rs` on `upstream/master`),
+no `Client::geolocation()` method, and no `geolocation` Cargo feature. So the files are dead code:
+the Geolocation API can't be called *and the module isn't even built*. Report as a gap; the minimal
+fix is to declare the module + add a `Client::geolocation()` returning a request whose smallest
+useful form is `consider_ip = true`.
 
 ---
 
