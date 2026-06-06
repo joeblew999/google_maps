@@ -6,89 +6,132 @@ changes the default `reqwest` behaviour.
 
 Upstream: https://github.com/leontoeides/google_maps · fork: https://github.com/joeblew999/google_maps
 
-| # | Item | Type | Status | Where |
-|---|------|------|--------|-------|
-| 1 | Cloudflare Workers (`wasm32`) transport | feature (PR) | **filed** [#44](https://github.com/leontoeides/google_maps/issues/44) | `docs/UPSTREAM_ISSUE.md` |
-| 2 | `--no-default-features` fails to compile (`HttpWithBody` cfg) | **bug** (PR) | ✅ verified · ready | `src/error.rs` |
-| 3 | `place_photos_uri`/`_image` reject string inputs (`From<Infallible>`) | **bug** (PR) | ✅ verified · ready | `src/error.rs` |
-| 4 | Roads **Speed Limits** not implemented | feature gap | ✅ verified · ready | `src/roads/` |
-| 5 | **Geolocation** module orphaned (never declared in `lib.rs`) | feature gap | ✅ verified · ready | `src/geolocation/` |
+| # | Item | Type | Status |
+|---|------|------|--------|
+| 1 | Cloudflare Workers (`wasm32`) transport | feature (PR) | **filed** [#44](https://github.com/leontoeides/google_maps/issues/44) — draft in `UPSTREAM_ISSUE.md` |
+| A | `--no-default-features` fails to compile (`HttpWithBody` cfg) | **bug** (PR) | ✅ verified · **draft ready** below |
+| B | `place_photos_uri`/`_image` reject string inputs (`From<Infallible>`) | **bug** (PR) | ✅ verified · **draft ready** below |
+| C | Two unreachable endpoints (Roads Speed Limits, Geolocation) | feature gap | ✅ verified · **draft ready** below |
 
-Items 2 & 3 are small, standalone bug-fix PRs that stand on their own merit regardless of whether
-upstream wants the Workers transport. Items 4 & 5 are "API is incomplete" reports (optionally with
-a PR).
+A & B are small standalone bug-fix PRs that stand on their own merit regardless of whether upstream
+wants the Workers transport. C is one consolidated "these endpoints are unreachable" report.
 
 > **Verified against pristine `upstream/master` (commit `9ed6a95`, v3.9.6 — identical to our `master`)
-> on 2026-06-06** via a throwaway worktree, so every claim below reflects current upstream, not our
-> patched fork:
-> - **#2** — `cargo build --no-default-features` fails: `E0425` (cannot find `HttpErrorStatus`) +
+> on 2026-06-06** via a throwaway worktree, so every claim reflects current upstream, not our patched
+> fork:
+> - **A** — `cargo build --no-default-features` fails: `E0425` (cannot find `HttpErrorStatus`) +
 >   `E0004` (non-exhaustive match on `HttpWithBody`).
-> - **#3** — `client.place_photos_uri("places/X/photos/Y")` fails: `E0277` *"the trait bound
+> - **B** — `client.place_photos_uri("places/X/photos/Y")` fails: `E0277` *"the trait bound
 >   `GoogleMapsError: From<Infallible>` is not satisfied"*.
-> - **#4** — `src/roads/mod.rs` says *"(Not yet implemented in this client.)"*; no `Client::speed_limits`.
-> - **#5** — `src/geolocation/{mod,request,response}.rs` exist, but **no `mod geolocation;` anywhere**
->   (scanned every `.rs`), so the module is never compiled — there's no client method *and no way to
->   reach it*, and no `geolocation` Cargo feature.
+> - **C1** — `src/roads/mod.rs` says *"(Not yet implemented in this client.)"*; no `Client::speed_limits`.
+> - **C2** — `src/geolocation/{mod,request,response}.rs` exist, but there is **no `mod geolocation;`
+>   anywhere** (scanned every `.rs`), so the module is never compiled — no client method, no way to
+>   reach it, no `geolocation` Cargo feature.
+
+This fork's fixes: bug **A** is included in the #44 branch; bug **B** is commit `0081c18`
+(`impl From<Infallible> for Error` in `src/error.rs`). The **C** gaps are *not* implemented here
+(they need real endpoint work, not just the ConnectRPC facade).
 
 ---
 
-## 1. Cloudflare Workers transport (FILED — #44)
+# Ready-to-file drafts
 
-Full draft in [`UPSTREAM_ISSUE.md`](./UPSTREAM_ISSUE.md). An optional `worker` feature, mutually
-alternative to `reqwest`, that supplies the central `get_request`/`post_request` via `worker::Fetch`.
-Additive, feature-gated, default build unchanged. Includes a runnable example Worker.
+Paste-ready. File only on your say-so.
 
-## 2. BUG — `--no-default-features` doesn't compile (`HttpWithBody`)
+## Issue A (bug PR) — `--no-default-features` doesn't compile
 
-In `src/error.rs` the `HttpWithBody` variant was ungated while its field type `HttpErrorStatus` and
-its `classify()` arm were `#[cfg(feature = "reqwest")]` → E0412 + E0004 without `reqwest`. One-line
-fix: gate the variant to match. Already described in #44 §1; could land as its own PR.
+**Title:** `--no-default-features` build fails to compile (`HttpWithBody` / `HttpErrorStatus` cfg mismatch)
 
-## 3. BUG — generic `place_photos` bound rejects string inputs
+**Body:**
 
-**Repro (upstream, any build):**
+On a clean `upstream/master` (v3.9.6), a `--no-default-features` build fails:
+
+```
+$ cargo build --no-default-features
+error[E0425]: cannot find type `HttpErrorStatus` in this scope
+   --> src/error.rs:126:17
+error[E0004]: non-exhaustive patterns: `&error::Error::HttpWithBody { .. }` not covered
+   --> src/error.rs:205:15
+```
+
+**Cause:** in `src/error.rs` the `HttpWithBody` variant is **ungated**, but its field type
+`HttpErrorStatus` and the matching `classify()` arm are both `#[cfg(feature = "reqwest")]`. Without
+`reqwest` the variant references a type that doesn't exist (E0425) and the `classify()` match becomes
+non-exhaustive (E0004).
+
+**Fix:** gate the variant to match its field/arm — one line:
+
+```rust
+#[cfg(feature = "reqwest")]   // <-- add
+#[error("HTTP error {status}: {body:?}")]
+#[diagnostic(code(google_maps::http_with_body))]
+HttpWithBody { status: HttpErrorStatus, body: String },
+```
+
+Happy to send a PR. (This is the same fix referenced in #44 §1, but it's independent of the Workers
+work and can land on its own.)
+
+---
+
+## Issue B (bug PR) — `place_photos_uri` / `_image` can't be called with a string
+
+**Title:** `place_photos_uri` / `place_photos_image` reject `&str`/`String` inputs (missing `From<Infallible> for Error`)
+
+**Body:**
+
+The documented "pass a photo resource name" usage doesn't compile on `upstream/master` (v3.9.6):
+
 ```rust
 let client = google_maps::Client::new(key);
-// Documented usage — does NOT compile:
-let photo = client.place_photos_uri("places/XXX/photos/YYY")?.max_width_px(400).execute().await?;
+let _ = client.place_photos_uri("places/XXX/photos/YYY"); // a Place.photos[].name value
 ```
-**Why:** both `place_photos_uri` and `place_photos_image` are bounded
-`where P: TryInto<PhotoRequest>, P::Error: Into<crate::Error>`. For a `From`-based conversion
-(`&str`/`String`/`PhotoRequest` → `PhotoRequest`) the associated `TryInto::Error` is
-`std::convert::Infallible`, and `crate::Error: From<Infallible>` is **not** implemented — so the bound
-is unsatisfiable and the call won't compile. In practice the photo methods are only callable via the
-`TryFrom<&Place>` path, not with a photo resource-name string (which is what the API actually returns
-in `Place.photos[].name`).
 
-**Fix (this fork, `src/error.rs`):**
+```
+error[E0277]: the trait bound `GoogleMapsError: From<Infallible>` is not satisfied
+   --> src/.../uri/request.rs
+    = note: required for `Infallible` to implement `Into<GoogleMapsError>`
+note: required by a bound in `place_photos_uri`
+    |  P::Error: Into<crate::Error>,
+```
+
+**Cause:** both `place_photos_uri` and `place_photos_image` are bounded
+`where P: TryInto<PhotoRequest>, P::Error: Into<crate::Error>`. For the `From`-based conversions
+(`&str` / `String` / `PhotoRequest` → `PhotoRequest`) the `TryInto::Error` is
+`std::convert::Infallible`, and `Error: From<Infallible>` isn't implemented — so the bound is
+unsatisfiable. In practice these methods are only reachable via `TryFrom<&Place>`, not with the
+photo resource-name string the API actually hands you in `Place.photos[].name`.
+
+**Fix:** add a total, zero-cost conversion (`Infallible` is uninhabited):
+
 ```rust
 impl std::convert::From<std::convert::Infallible> for Error {
     fn from(value: std::convert::Infallible) -> Self { match value {} }
 }
 ```
-Zero-cost (`Infallible` is uninhabited), additive, and makes the documented string-input usage work.
 
-## 4. FEATURE GAP — Roads Speed Limits not implemented
-
-`src/roads/mod.rs` documents Speed Limits but the comment says *"(Not yet implemented in this
-client.)"* — there is no `Client::speed_limits(...)`. (Note: Google restricts this endpoint to Asset
-Tracking / Premium licenses, so it can't be smoke-tested on a standard key — worth calling out in
-any PR.) Report as a tracked gap; optionally implement following the `snap_to_roads` shape.
-
-## 5. FEATURE GAP — Geolocation module is orphaned (never compiled)
-
-`src/geolocation/` defines `Request` (`consider_ip`, cell towers, wifi APs) and `Response`
-(`location` + `accuracy`), **but `geolocation` is never declared as a module** — there is no
-`mod geolocation;` anywhere in the crate (verified by scanning every `.rs` on `upstream/master`),
-no `Client::geolocation()` method, and no `geolocation` Cargo feature. So the files are dead code:
-the Geolocation API can't be called *and the module isn't even built*. Report as a gap; the minimal
-fix is to declare the module + add a `Client::geolocation()` returning a request whose smallest
-useful form is `consider_ip = true`.
+This makes the string-input call sites work and is purely additive. Happy to send a PR.
 
 ---
 
-### How these map to this fork's commits
-- Workers transport + bug #2: the bulk of the `feat/cloudflare-workers` branch (see #44 draft).
-- Bug #3 (`From<Infallible>`): `0081c18`.
-- Gaps #4/#5: observations only — not implemented here (would require real endpoint work in the fork,
-  not just the ConnectRPC facade).
+## Issue C (report / optional PR) — two API endpoints are unreachable
+
+**Title:** Roads Speed Limits and the Geolocation API are unreachable from `Client`
+
+**Body:**
+
+Two Google Maps APIs have code in the tree but can't be called on `upstream/master` (v3.9.6):
+
+**1. Roads — Speed Limits.** `src/roads/mod.rs` documents it but notes *"(Not yet implemented in
+this client.)"* — there's no `Client::speed_limits(...)`. (Heads-up: Google restricts this endpoint
+to Asset Tracking / Premium licenses, so it can't be smoke-tested on a standard key — worth noting in
+any implementation.)
+
+**2. Geolocation.** `src/geolocation/{mod,request,response}.rs` exist and define `Request`
+(`consider_ip`, cell towers, wifi access points) and `Response` (`location`, `accuracy`) — but
+**`geolocation` is never declared as a module** (no `mod geolocation;` anywhere in the crate), there's
+no `Client::geolocation()`, and no `geolocation` Cargo feature. So the module is dead code that isn't
+even compiled.
+
+Filing as a tracked gap. Smallest useful fix for Geolocation: declare the module + a
+`Client::geolocation()` whose minimal request is `consider_ip = true`. I'm happy to attempt a PR for
+Geolocation if you'd take it; Speed Limits is lower-value given the licensing restriction.
