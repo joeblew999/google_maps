@@ -49,3 +49,17 @@ uncommented) are pinned in the task — bump them after acting on a change so it
 - Bug **A**: included in the `feat/cloudflare-workers` branch (see the #44 draft).
 - Bug **B**: commit `0081c18` — `impl From<Infallible> for Error` in `src/error.rs`.
 - Gaps **C**: *not* implemented here (they need real endpoint work, not just the ConnectRPC facade).
+
+## Dependency pins (`feat/cloudflare-workers`)
+
+_Last checked: 2026-10-22._ Cross-repo rollout tracker: [cf-connectrpc-middleware#4](https://github.com/joeblew999/cf-connectrpc-middleware/issues/4).
+
+| Dep | We pin | Latest | Source | Notes |
+|---|---|---|---|---|
+| `connectrpc` | **0.9.1** | 0.9.1 | [anthropics/connect-rust](https://github.com/anthropics/connect-rust) | `crates/connectrpc` forwards a default-on `json` feature; servers with `default-features = false` must enable it or JSON is HTTP 415. |
+| `connectrpc-build` | **0.9.0** | 0.9.0 | anthropics/connect-rust | |
+| `buffa` | **0.9.2** | 0.9.2 | [anthropics/buffa](https://github.com/anthropics/buffa) | Lockstep with `connectrpc`. |
+| `connectrpc-workers` | **0.6.0** | 0.6.0 | [connyay/connectrpc-workers](https://github.com/connyay/connectrpc-workers) | Client worker transport. |
+| `worker` | **0.8.7** | 0.8.7 | [cloudflare/workers-rs](https://github.com/cloudflare/workers-rs) | Needs Rust ≥ 1.91 (root crate keeps upstream's 1.76 MSRV otherwise). worker-build 0.8.7 needs wasm-bindgen ≥ 0.2.125 and `strip = "debuginfo"`, not `true`. |
+
+Lockfiles are gitignored, so run `cargo update` in each example after a pull. No crate of ours links against this one, and it doesn't link cf-connectrpc-middleware, so bumps can land any time.
