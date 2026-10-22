@@ -13,6 +13,7 @@ use thiserror::Error;
 /// client.
 #[derive(Debug, Diagnostic, Error)]
 #[diagnostic(url(docsrs))]
+#[non_exhaustive]
 pub enum Error {
     /// Error originating from the types and structs in the `google_maps` crate.
     #[error(transparent)]
@@ -182,7 +183,17 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(code(google_maps::polyline))]
     Polyline(#[from] polyline::errors::PolylineError),
-} // enum Error
+
+    /// The error type for errors that can never happen.
+    ///
+    /// This error is guaranteed to be unreachable.
+    #[error("an error that can never happen")]
+    StdConvertInfallible {
+        #[from]
+        #[source]
+        source: std::convert::Infallible,
+    },
+}
 
 // -----------------------------------------------------------------------------
 
@@ -350,6 +361,8 @@ impl ClassifiableError<'_, Self> for Error {
             Self::InvalidHeaderValue { .. } => ClassifiedError::Permanent(self),
 
             Self::Json(_json_error) => ClassifiedError::Permanent(self),
+
+            Self::StdConvertInfallible { .. } => ClassifiedError::Permanent(self),
 
             #[cfg(feature = "polyline")]
             Self::Polyline(_polyline_error) => ClassifiedError::Permanent(self),
