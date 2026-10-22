@@ -13,6 +13,7 @@ use thiserror::Error;
 /// client.
 #[derive(Debug, Diagnostic, Error)]
 #[diagnostic(url(docsrs))]
+#[non_exhaustive]
 pub enum Error {
     /// Error originating from the types and structs in the `google_maps` crate.
     #[error(transparent)]
@@ -182,21 +183,17 @@ pub enum Error {
     #[error(transparent)]
     #[diagnostic(code(google_maps::polyline))]
     Polyline(#[from] polyline::errors::PolylineError),
-} // enum Error
 
-// -----------------------------------------------------------------------------
-
-// Several generic builder entry points (e.g. `place_photos_uri`) bound their
-// input as `P: TryInto<X>, P::Error: Into<crate::Error>`. Passing an owned/borrowed
-// string uses a `From`-based conversion whose `TryInto::Error` is `Infallible`, so
-// that bound requires `Error: From<Infallible>`. `Infallible` can never be
-// constructed, so this is a total, zero-cost conversion — and it makes those
-// string-input call sites usable. (Upstreamable: additive, no behaviour change.)
-impl std::convert::From<std::convert::Infallible> for Error {
-    fn from(value: std::convert::Infallible) -> Self {
-        match value {}
-    } // fn
-} // impl
+    /// The error type for errors that can never happen.
+    ///
+    /// This error is guaranteed to be unreachable.
+    #[error("an error that can never happen")]
+    StdConvertInfallible {
+        #[from]
+        #[source]
+        source: std::convert::Infallible,
+    },
+}
 
 // -----------------------------------------------------------------------------
 
@@ -350,6 +347,8 @@ impl ClassifiableError<'_, Self> for Error {
             Self::InvalidHeaderValue { .. } => ClassifiedError::Permanent(self),
 
             Self::Json(_json_error) => ClassifiedError::Permanent(self),
+
+            Self::StdConvertInfallible { .. } => ClassifiedError::Permanent(self),
 
             #[cfg(feature = "polyline")]
             Self::Polyline(_polyline_error) => ClassifiedError::Permanent(self),

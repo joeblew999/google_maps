@@ -3,6 +3,28 @@
 * Release notes are available on
   [GitHub](https://github.com/leontoeides/google_maps/releases).
 
+# 3.10.0
+
+* 2026-07-12: Support for Google's February 12, 2026 place types update. **Note
+  that discriminant values were renumbered to accomodate larger category
+  blocks.** If you use these place types in a cache, or serialize to disk, this
+  is a breaking change.
+
+* 2027-07-12: Put `Error::HttpWithBody` behind the `reqwest` feature-gate. Thank
+  you [Gerard Webb](https://github.com/joeblew999) for [issue
+  #44](https://github.com/leontoeides/google_maps/issues/44) and the
+  recommendation.
+
+* 2027-07-12: Added support for `Infallible` errors in `google_maps::Error`
+  type. Thank you to [Gerard Webb](https://github.com/joeblew999) for [issue
+  #46](https://github.com/leontoeides/google_maps/issues/46).
+
+* 2027-07-12: Removed the dead `geolocation` module. Removed references to
+  speed limit support. Thanks to [Gerard Webb](https://github.com/joeblew999)
+  for [issue #47](https://github.com/leontoeides/google_maps/issues/47).
+
+* 2026-07-12: Dependency bumps.
+
 # 3.9.6
 
 * 2026-03-18: Ensure that `RequestBuilder` types are public.
