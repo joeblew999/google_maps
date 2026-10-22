@@ -3,9 +3,9 @@
 Dev-facing notes: architecture, gotchas, conventions, and the TODO/tracking board.
 **For *what runs on Cloudflare* and how to operate it, see [CLOUDFLARE.md](CLOUDFLARE.md).**
 
-Fork of [`leontoeides/google_maps`](https://github.com/leontoeides/google_maps) (v3.9.6) adding an
+Fork of [`leontoeides/google_maps`](https://github.com/leontoeides/google_maps) (v3.10.0) adding an
 additive Cloudflare Workers (`wasm32`) transport + a reusable ConnectRPC layer. Remotes:
-`origin` = this fork, `upstream` = leontoeides. Work lands on branch `feat/cloudflare-workers`.
+`origin` = this fork, `upstream` = leontoeides. Our work lives on `main` (the default branch). Upstream is merged in from `upstream/master`; there's no separate mirror branch.
 
 ## The one rule that governs every change
 
@@ -125,9 +125,8 @@ secondary examples, opt-in live tests, dev-loop) is `hide = true` — see them a
 ## Conventions
 
 - Tooling: `mise` + `nushell` (OS-neutral; no hardcoded paths). Stack: Rust + nushell — no Python for code.
-- Git: work lands on `feat/cloudflare-workers`; `master` stays = upstream for clean syncing. The user
-  has approved ongoing pushes to the feature branch; still ask before pushing to `master` or opening PRs.
-- Upstream backlog: **`docs/UPSTREAM.md`** is the index; paste-ready issue drafts (one file each) live in **`docs/upstream/`** (issue-A/B/C + the filed #44). Cloudflare issue filed: leontoeides/google_maps#44.
+- Git: one branch, `main`. Take upstream releases with `git fetch upstream && git merge upstream/master` (merge, never rebase: `main` is published). Changes go through a PR into `main`. The maintainer declined Workers support in-crate (upstream #44), so this overlay stays ours.
+- Upstream backlog: **`docs/UPSTREAM.md`** is the index; paste-ready issue drafts (one file each) live in **`docs/upstream/`** (A/B/C/D + #44). All of #44–#47 were answered and closed 2026-07-12; #48 (`geo` feature) is open.
 
 ## TODO / tracking
 

@@ -10,19 +10,24 @@ Paste-ready issue drafts live in [`docs/upstream/`](./upstream/) — one file ea
 
 | # | Item | Type | Status | Draft |
 |---|------|------|--------|-------|
-| 1 | Cloudflare Workers (`wasm32`) transport | feature (PR) | **filed** [#44](https://github.com/leontoeides/google_maps/issues/44) | [`issue-44-cloudflare-workers.md`](./upstream/issue-44-cloudflare-workers.md) |
-| A | `--no-default-features` fails to compile (`HttpWithBody` cfg) | **bug** (PR) | **filed** [#45](https://github.com/leontoeides/google_maps/issues/45) | [`issue-A-no-default-features.md`](./upstream/issue-A-no-default-features.md) |
-| B | `place_photos_uri`/`_image` reject string inputs (`From<Infallible>`) | **bug** (PR) | **filed** [#46](https://github.com/leontoeides/google_maps/issues/46) | [`issue-B-place-photos-infallible.md`](./upstream/issue-B-place-photos-infallible.md) |
-| C | Two unreachable endpoints (Roads Speed Limits, Geolocation) | feature gap | **filed** [#47](https://github.com/leontoeides/google_maps/issues/47) | [`issue-C-unreachable-endpoints.md`](./upstream/issue-C-unreachable-endpoints.md) |
+| 1 | Cloudflare Workers (`wasm32`) transport | feature (PR) | **declined** [#44](https://github.com/leontoeides/google_maps/issues/44) (2026-07-12): maintenance burden. He offers to link a separately published worker crate; tracked in joeblew999/google_maps#8 | [`issue-44-cloudflare-workers.md`](./upstream/issue-44-cloudflare-workers.md) |
+| A | `--no-default-features` fails to compile (`HttpWithBody` cfg) | **bug** | **fixed in v3.10.0** [#45](https://github.com/leontoeides/google_maps/issues/45) (`2828903`) | [`issue-A-no-default-features.md`](./upstream/issue-A-no-default-features.md) |
+| B | `place_photos_uri`/`_image` reject string inputs (`From<Infallible>`) | **bug** | **fixed in v3.10.0** [#46](https://github.com/leontoeides/google_maps/issues/46) (`80b3892`) | [`issue-B-place-photos-infallible.md`](./upstream/issue-B-place-photos-infallible.md) |
+| C | Two unreachable endpoints (Roads Speed Limits, Geolocation) | feature gap | **cleaned up in v3.10.0** [#47](https://github.com/leontoeides/google_maps/issues/47): dead `geolocation` module and speed-limit mention removed (`79816af`) | [`issue-C-unreachable-endpoints.md`](./upstream/issue-C-unreachable-endpoints.md) |
+| D | `geo` feature doesn't compile with the default Places (New) features (27 errors; also breaks `--all-features`) | **bug** | **filed** [#48](https://github.com/leontoeides/google_maps/issues/48) (2026-10-22) | [`issue-D-geo-feature.md`](./upstream/issue-D-geo-feature.md) |
 
-A & B are small standalone bug-fix PRs that stand on their own merit regardless of whether upstream
-wants the Workers transport. C is one consolidated "these endpoints are unreachable" report.
+We merged v3.10.0 into our `main` (joeblew999/google_maps#12) and dropped our own A/B fixes in favour
+of upstream's. D isn't in our builds (we don't enable `geo`), so it has no workaround here.
 
 ## Verification
 
-**Verified against pristine `upstream/master` (commit `9ed6a95`, v3.9.6 — identical to our `master`)
-on 2026-06-06** via a throwaway worktree, so every claim reflects current upstream, not our patched
-fork:
+**D, verified 2026-10-22 against pristine `upstream/master` (`1c4eed9`, v3.10.0) and v3.9.6** in a
+throwaway worktree, rustc 1.99.0: `cargo check --features geo` gives 27 errors in
+`src/places_new/types/**/geo.rs` (stale imports: `TypeError`/`GoogleMapsError` not in scope,
+private `autocomplete::request::Viewport`, `crate::types::Viewport`, `LocationBias`/`LocationRestriction`).
+`--no-default-features --features geo` compiles.
+
+**A–C, verified against pristine `upstream/master` (commit `9ed6a95`, v3.9.6) on 2026-06-06**:
 
 - **A** — `cargo build --no-default-features` fails: `E0425` (cannot find `HttpErrorStatus`) +
   `E0004` (non-exhaustive match on `HttpWithBody`).
@@ -35,22 +40,26 @@ fork:
 
 ## Monitoring (did he respond?)
 
-`mise run upstream:watch` — prints a status table for #44–#47 + upstream release/commits, and **exits
-non-zero** if anything changed (a comment, a close, a new release, or a commit touching
-`error.rs`/`roads`/`geolocation`). Run it anytime.
+`mise run upstream:watch` prints a status table for #44–#48 plus upstream releases and commits. It
+**exits non-zero** if anything differs from its per-issue baseline (state + comment count), there's a
+new release, or a new commit touches `src/error.rs`, `src/roads` or `src/places_new/types`. Run it
+anytime.
 
-Scheduled in CI: **`.github/workflows/upstream-watch.yml`** runs it weekly (Mon 09:00 UTC) + on demand
-("Run workflow"). A change flips the task to a failed run → GitHub notifies the repo owner; the status
-table is written to the run's job summary. Baselines (`v3.9.6`, commit `9ed6a95`, all issues open &
-uncommented) are pinned in the task — bump them after acting on a change so it goes quiet again.
+Scheduled in CI: **`.github/workflows/upstream-watch.yml`** runs it weekly (Mon 09:00 UTC) and on
+demand. A change fails the run, which notifies the repo owner, and the table lands in the job summary.
+**It only runs from the default branch (`main`).** Until 2026-10-22 it lived on a non-default branch
+and never ran, which is how the #44–#47 replies went unnoticed for 3 months (joeblew999/google_maps#7).
+Baselines (v3.10.0, `1c4eed9`, per-issue state/comments) are pinned in the task; bump them after acting
+on a change so it goes quiet again.
 
 ## This fork's fixes
 
-- Bug **A**: included in the `feat/cloudflare-workers` branch (see the #44 draft).
-- Bug **B**: commit `0081c18` — `impl From<Infallible> for Error` in `src/error.rs`.
-- Gaps **C**: *not* implemented here (they need real endpoint work, not just the ConnectRPC facade).
+- Bugs **A** and **B**: fixed upstream in v3.10.0; our patches were dropped when merging it.
+- Gaps **C**: upstream removed the dead code rather than implementing it. Speed Limits / Geolocation
+  would need real endpoint work here if we ever want them.
+- Bug **D**: not patched here; we don't enable `geo`.
 
-## Dependency pins (`feat/cloudflare-workers`)
+## Dependency pins (`main`)
 
 _Last checked: 2026-10-22._ Cross-repo rollout tracker: [cf-connectrpc-middleware#4](https://github.com/joeblew999/cf-connectrpc-middleware/issues/4).
 
