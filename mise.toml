@@ -103,20 +103,28 @@ git merge upstream/master
 '''
 
 [tasks."upstream:watch"]
-description = "Check our upstream issues (#44–#47) + releases/commits for maintainer activity. Prints a status table; exits 1 if anything changed (so a scheduled CI job fails → you get notified). Needs gh (GH_TOKEN in CI)."
+description = "Check our upstream issues (#44–#48) + releases/commits for maintainer activity. Prints a status table; exits 1 if anything changed (so a scheduled CI job fails → you get notified). Needs gh (GH_TOKEN in CI)."
 shell = "nu -c"
 run = '''
 let repo = "leontoeides/google_maps"
-let issues = [44 45 46 47]
-let baseline_release = "v3.9.6"
-let baseline_commit = "9ed6a95"
+# Per-issue baseline = the state + comment count we last acted on. Bump an entry after reading a
+# change so the watch goes quiet again.
+let issues = [
+    { n: 44, state: "CLOSED", comments: 1 }   # Workers transport: declined, link offered (#8)
+    { n: 45, state: "CLOSED", comments: 1 }   # --no-default-features: fixed in v3.10.0
+    { n: 46, state: "CLOSED", comments: 1 }   # From<Infallible>: fixed in v3.10.0
+    { n: 47, state: "CLOSED", comments: 1 }   # unreachable endpoints: cleaned up in v3.10.0
+    { n: 48, state: "OPEN",   comments: 0 }   # geo feature: filed 2026-10-22
+]
+let baseline_release = "v3.10.0"
+let baseline_commit = "1c4eed9"
 mut changed = false
 
 print "── upstream watch ──────────────────────────────────────────"
-for n in $issues {
-    let j = (^gh issue view $n --repo $repo --json number,state,title,comments | from json)
+for b in $issues {
+    let j = (^gh issue view $b.n --repo $repo --json number,state,title,comments | from json)
     let c = ($j.comments | length)
-    let hot = (($j.state != "OPEN") or ($c > 0))
+    let hot = (($j.state != $b.state) or ($c != $b.comments))
     if $hot { $changed = true }
     let mark = (if $hot { "⚠" } else { "·" })
     print $"($mark) #($j.number) [($j.state)] comments=($c)  ($j.title | str substring 0..46)"
@@ -137,14 +145,14 @@ if ($rel != null) and ($rel != $baseline_release) {
 # Commits touching the files our issues are about (works in CI too: add+fetch the remote).
 ^git remote add upstream https://github.com/leontoeides/google_maps.git | complete | ignore
 ^git fetch upstream | complete | ignore
-let touched = (^git log --oneline $"($baseline_commit)..upstream/master" -- src/error.rs src/roads src/geolocation | complete)
+let touched = (^git log --oneline $"($baseline_commit)..upstream/master" -- src/error.rs src/roads src/places_new/types | complete)
 let lines = ($touched.stdout | lines | where {|l| ($l | str trim | is-not-empty)})
 if ($lines | length) > 0 {
     $changed = true
-    print "⚠ upstream commits touching error.rs / roads / geolocation:"
+    print "⚠ upstream commits touching error.rs / roads / places_new/types:"
     for l in $lines { print $"      ($l)" }
 } else {
-    print "· no upstream commits to error.rs / roads / geolocation"
+    print "· no upstream commits to error.rs / roads / places_new/types"
 }
 
 print "────────────────────────────────────────────────────────────"
@@ -152,7 +160,7 @@ if $changed {
     print "⚠ CHANGE DETECTED — maintainer responded or relevant code moved. Review above + docs/UPSTREAM.md."
     exit 1
 } else {
-    print "✓ no change since baseline (all issues open & uncommented, same release/commits)."
+    print "✓ no change since baseline (issues match baselines, same release, no new commits)."
 }
 '''
 
