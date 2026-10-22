@@ -1,15 +1,15 @@
 //! Address Validation RPC: address lines + region -> verdict + standardized address.
 
-use connectrpc::{ConnectError, Response, ServiceResult};
+use connectrpc::{ConnectError, Response, ServiceRequest, ServiceResult};
 use google_maps::Client;
 use google_maps::address_validation::PostalAddress;
 
 use super::exec_await;
-use crate::proto::maps::v1::{OwnedValidateAddressRequestView, ValidateAddressResponse};
+use crate::proto::maps::v1::{ValidateAddressRequest, ValidateAddressResponse};
 
 pub(super) async fn validate_address(
     client: &Client,
-    request: OwnedValidateAddressRequestView,
+    request: ServiceRequest<'_, ValidateAddressRequest>,
 ) -> ServiceResult<ValidateAddressResponse> {
     let region_code = if request.region_code.is_empty() {
         None

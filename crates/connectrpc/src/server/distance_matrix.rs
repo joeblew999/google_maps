@@ -2,18 +2,18 @@
 //! Inputs are coordinates (clients geocode addresses first — `Waypoint` only
 //! converts from `LatLng`).
 
-use connectrpc::{ConnectError, Response, ServiceResult};
+use connectrpc::{ConnectError, Response, ServiceRequest, ServiceResult};
 use google_maps::Client;
 use google_maps::types::LatLng;
 
 use super::exec_await;
 use crate::proto::maps::v1::{
-    DistanceMatrixElement, DistanceMatrixResponse, DistanceMatrixRow, OwnedDistanceMatrixRequestView,
+    DistanceMatrixElement, DistanceMatrixRequest, DistanceMatrixResponse, DistanceMatrixRow,
 };
 
 pub(super) async fn distance_matrix(
     client: &Client,
-    request: OwnedDistanceMatrixRequestView,
+    request: ServiceRequest<'_, DistanceMatrixRequest>,
 ) -> ServiceResult<DistanceMatrixResponse> {
     let origins = request
         .origins

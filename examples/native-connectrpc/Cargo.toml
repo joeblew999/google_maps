@@ -12,7 +12,7 @@ google_maps = { path = "../..", default-features = false, features = [
     "reqwest", "reqwest-default-tls", "geocoding", "places-new-core", "places-new-text-search",
 ] }
 
-connectrpc = { version = "0.6", features = ["axum"] }
+connectrpc = { version = "0.9.1", features = ["axum"] }
 axum       = "0.8"
 tokio      = { version = "1", features = ["full"] }
 

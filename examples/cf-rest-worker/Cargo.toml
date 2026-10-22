@@ -36,8 +36,8 @@ google_maps = { path = "../..", default-features = false, features = [
     "decimal-serde",
 ] }
 
-worker        = { version = "0.8", features = ["http"] }
-worker-macros = { version = "0.8", features = ["http"] }
+worker        = { version = "0.8.7", features = ["http"] }
+worker-macros = { version = "0.8.7", features = ["http"] }
 
 # uuid with the `js` backend so the uuid-using APIs (autocomplete, place-details)
 # get a wasm randomness source via feature unification.
@@ -48,4 +48,7 @@ console_error_panic_hook = "0.1"
 opt-level = "z"
 lto = true
 codegen-units = 1
-strip = true
+# Not `true`: full strip drops the wasm `target_features` section, so wasm-bindgen
+# can't see reference-types and worker-build 0.8.7's forced abort handler fails
+# ("externref table required for catch wrappers"). wasm-opt strips the rest.
+strip = "debuginfo"
