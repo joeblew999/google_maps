@@ -53,8 +53,8 @@ The public web demo can't carry a token. Two safe options:
   (compare the Bearer against a CF secret set) + call the **CF Rate Limiting binding** directly +
   set **GCP daily quotas**. ~50 lines, zero dependency on the new middleware.
 - **Phase 1:** swap the hand-rolled bits for `connectrpc-cf-rate-limit` + `connectrpc-cf-metrics`
-  once that middleware stabilises (then bump `cf-connectrpc-middleware` to connectrpc 0.6 — already
-  on the roadmap).
+  once that middleware stabilises (this repo and `cf-connectrpc-middleware` are both on connectrpc
+  0.9 now, so no version bump is needed first).
 - **Phase 2 (if needed):** hard monthly caps via per-token counters in KV/DO; `connectrpc-cedar` for
   per-RPC policy.
 

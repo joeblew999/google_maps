@@ -6,19 +6,17 @@
 //! forwards to the matching feature module (mirroring upstream's `src/<feature>/`
 //! layout). Add a feature = add a module + one delegating line below.
 
-use connectrpc::{RequestContext, ServiceResult};
+use connectrpc::{RequestContext, ServiceRequest, ServiceResult};
 use google_maps::Client;
 
 use crate::proto::maps::v1::{
-    DirectionsResponse, DistanceMatrixResponse, ElevationResponse, GeocodeResponse, MapsService,
-    NearestRoadsResponse, OwnedDirectionsRequestView, OwnedDistanceMatrixRequestView,
-    OwnedElevationRequestView, OwnedGeocodeRequestView, OwnedNearestRoadsRequestView,
-    OwnedPlaceDetailsRequestView, OwnedPlacePhotosRequestView, OwnedPlacesAutocompleteRequestView,
-    OwnedPlacesNearbyRequestView, OwnedReverseGeocodeRequestView, OwnedSnapToRoadsRequestView,
-    OwnedTextSearchRequestView, OwnedTimeZoneRequestView, OwnedValidateAddressRequestView,
-    PlaceDetailsResponse, PlacePhotosResponse, PlacesAutocompleteResponse, PlacesNearbyResponse,
-    ReverseGeocodeResponse, SnapToRoadsResponse, TextSearchResponse, TimeZoneResponse,
-    ValidateAddressResponse,
+    DirectionsRequest, DirectionsResponse, DistanceMatrixRequest, DistanceMatrixResponse,
+    ElevationRequest, ElevationResponse, GeocodeRequest, GeocodeResponse, MapsService,
+    NearestRoadsRequest, NearestRoadsResponse, PlaceDetailsRequest, PlaceDetailsResponse,
+    PlacePhotosRequest, PlacePhotosResponse, PlacesAutocompleteRequest, PlacesAutocompleteResponse,
+    PlacesNearbyRequest, PlacesNearbyResponse, ReverseGeocodeRequest, ReverseGeocodeResponse,
+    SnapToRoadsRequest, SnapToRoadsResponse, TextSearchRequest, TextSearchResponse,
+    TimeZoneRequest, TimeZoneResponse, ValidateAddressRequest, ValidateAddressResponse,
 };
 
 mod address_validation;
@@ -46,7 +44,7 @@ impl MapsService for MapsServer {
     async fn geocode(
         &self,
         _ctx: RequestContext,
-        request: OwnedGeocodeRequestView,
+        request: ServiceRequest<'_, GeocodeRequest>,
     ) -> ServiceResult<GeocodeResponse> {
         geocoding::geocode(&self.client, request).await
     }
@@ -54,7 +52,7 @@ impl MapsService for MapsServer {
     async fn reverse_geocode(
         &self,
         _ctx: RequestContext,
-        request: OwnedReverseGeocodeRequestView,
+        request: ServiceRequest<'_, ReverseGeocodeRequest>,
     ) -> ServiceResult<ReverseGeocodeResponse> {
         geocoding::reverse_geocode(&self.client, request).await
     }
@@ -62,7 +60,7 @@ impl MapsService for MapsServer {
     async fn directions(
         &self,
         _ctx: RequestContext,
-        request: OwnedDirectionsRequestView,
+        request: ServiceRequest<'_, DirectionsRequest>,
     ) -> ServiceResult<DirectionsResponse> {
         directions::directions(&self.client, request).await
     }
@@ -70,7 +68,7 @@ impl MapsService for MapsServer {
     async fn elevation(
         &self,
         _ctx: RequestContext,
-        request: OwnedElevationRequestView,
+        request: ServiceRequest<'_, ElevationRequest>,
     ) -> ServiceResult<ElevationResponse> {
         elevation::elevation(&self.client, request).await
     }
@@ -78,7 +76,7 @@ impl MapsService for MapsServer {
     async fn time_zone(
         &self,
         _ctx: RequestContext,
-        request: OwnedTimeZoneRequestView,
+        request: ServiceRequest<'_, TimeZoneRequest>,
     ) -> ServiceResult<TimeZoneResponse> {
         time_zone::time_zone(&self.client, request).await
     }
@@ -86,7 +84,7 @@ impl MapsService for MapsServer {
     async fn text_search(
         &self,
         _ctx: RequestContext,
-        request: OwnedTextSearchRequestView,
+        request: ServiceRequest<'_, TextSearchRequest>,
     ) -> ServiceResult<TextSearchResponse> {
         places::text_search(&self.client, request).await
     }
@@ -94,7 +92,7 @@ impl MapsService for MapsServer {
     async fn distance_matrix(
         &self,
         _ctx: RequestContext,
-        request: OwnedDistanceMatrixRequestView,
+        request: ServiceRequest<'_, DistanceMatrixRequest>,
     ) -> ServiceResult<DistanceMatrixResponse> {
         distance_matrix::distance_matrix(&self.client, request).await
     }
@@ -102,7 +100,7 @@ impl MapsService for MapsServer {
     async fn places_autocomplete(
         &self,
         _ctx: RequestContext,
-        request: OwnedPlacesAutocompleteRequestView,
+        request: ServiceRequest<'_, PlacesAutocompleteRequest>,
     ) -> ServiceResult<PlacesAutocompleteResponse> {
         places::autocomplete(&self.client, request).await
     }
@@ -110,7 +108,7 @@ impl MapsService for MapsServer {
     async fn places_nearby(
         &self,
         _ctx: RequestContext,
-        request: OwnedPlacesNearbyRequestView,
+        request: ServiceRequest<'_, PlacesNearbyRequest>,
     ) -> ServiceResult<PlacesNearbyResponse> {
         places::nearby(&self.client, request).await
     }
@@ -118,7 +116,7 @@ impl MapsService for MapsServer {
     async fn place_details(
         &self,
         _ctx: RequestContext,
-        request: OwnedPlaceDetailsRequestView,
+        request: ServiceRequest<'_, PlaceDetailsRequest>,
     ) -> ServiceResult<PlaceDetailsResponse> {
         places::place_details(&self.client, request).await
     }
@@ -126,7 +124,7 @@ impl MapsService for MapsServer {
     async fn place_photos(
         &self,
         _ctx: RequestContext,
-        request: OwnedPlacePhotosRequestView,
+        request: ServiceRequest<'_, PlacePhotosRequest>,
     ) -> ServiceResult<PlacePhotosResponse> {
         places::place_photos(&self.client, request).await
     }
@@ -134,7 +132,7 @@ impl MapsService for MapsServer {
     async fn snap_to_roads(
         &self,
         _ctx: RequestContext,
-        request: OwnedSnapToRoadsRequestView,
+        request: ServiceRequest<'_, SnapToRoadsRequest>,
     ) -> ServiceResult<SnapToRoadsResponse> {
         roads::snap_to_roads(&self.client, request).await
     }
@@ -142,7 +140,7 @@ impl MapsService for MapsServer {
     async fn nearest_roads(
         &self,
         _ctx: RequestContext,
-        request: OwnedNearestRoadsRequestView,
+        request: ServiceRequest<'_, NearestRoadsRequest>,
     ) -> ServiceResult<NearestRoadsResponse> {
         roads::nearest_roads(&self.client, request).await
     }
@@ -150,7 +148,7 @@ impl MapsService for MapsServer {
     async fn validate_address(
         &self,
         _ctx: RequestContext,
-        request: OwnedValidateAddressRequestView,
+        request: ServiceRequest<'_, ValidateAddressRequest>,
     ) -> ServiceResult<ValidateAddressResponse> {
         address_validation::validate_address(&self.client, request).await
     }

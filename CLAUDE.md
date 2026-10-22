@@ -55,9 +55,15 @@ a protobuf `service` must live in one file anyway.
 Server runtime = the `connectrpc`
 crate's `ConnectRpcService` (the right one for serving on CF — same as connyay's examples;
 `connyay/connectrpc-workers` is the *client* transport, not needed for serving). The `connectrpc`
-crate is [`anthropics/connect-rust`](https://github.com/anthropics/connect-rust) — pinned to **0.6.x**
-(latest; serves both native via `axum` and CF Workers from one crate). Uses `.into_send()` because
-the fork's fetch futures are `!Send` and connectrpc requires `Send`.
+crate is [`anthropics/connect-rust`](https://github.com/anthropics/connect-rust) — pinned to **0.9.x**
+(connectrpc 0.9.1 / buffa 0.9.2 / connectrpc-workers 0.6; serves both native via `axum` and CF
+Workers from one crate). Handlers take `ServiceRequest<'_, FooRequest>` (derefs to the view). The
+JSON codec is behind connectrpc's `json` feature (0.8+): our crate forwards it as its own default-on
+`json` feature, and any binary that serves with `connectrpc` `default-features = false` must enable
+it or `application/json` gets HTTP 415. Uses `.into_send()` because the fork's fetch futures are
+`!Send` and connectrpc requires `Send`. CF example release profiles use `strip = "debuginfo"`, not
+`true`: worker-build 0.8.7 always passes `--force-enable-abort-handler`, which needs wasm-bindgen
+>= 0.2.125 and the wasm `target_features` section that a full strip removes.
 
 **Native + Cloudflare from one proto (DONE).** The crate is feature-gated: `worker` (default,
 wasm/`worker::Fetch`) or `native` (`reqwest`). One proto, one `MapsServer`; the only code diff is the
@@ -65,8 +71,8 @@ wasm/`worker::Fetch`) or `native` (`reqwest`). One proto, one `MapsServer`; the 
 is already `Send`). `examples/native-connectrpc` serves the SAME service via axum
 (`router.into_axum_service()` + `axum::serve`) beside `examples/cf-connectrpc-worker` (CF). `mise run
 test:connectrpc` smokes BOTH runtimes with the identical JSON RPC. The middleware crates in
-`cf-connectrpc-middleware` (cedar/metrics/rate-limit/tracing) are NOT added yet (too new); we'll bump
-that repo to connectrpc 0.6 after all Maps APIs are covered over Connect RPC.
+`cf-connectrpc-middleware` (cedar/metrics/rate-limit/tracing) are NOT added yet (too new); both repos
+are now on connectrpc 0.9, so no version bump blocks wiring them in.
 
 ## Workspace & native isolation
 
@@ -134,7 +140,7 @@ secondary examples, opt-in live tests, dev-loop) is `hide = true` — see them a
   - Notes: DistanceMatrix/Roads take coordinate `LatLng` lists (Waypoint/path only convert from LatLng), so clients geocode addresses first. autocomplete + place_details pull `uuid` → crate enables uuid's wasm `js` backend only on the `worker` feature. PlacePhotos needs a photo name from a place's `photo_names` (PlaceDetails surfaces them). Upstreamable fix added in `src/error.rs`: `From<Infallible> for Error` (makes the generic `place_photos_uri`/`_image` string-input bound satisfiable).
 - [ ] **Kumo + React** layer on top of the web client (later, when the shared Kumo+ConnectRPC setup matures)
 - [ ] Publish `@joeblew999/google-maps-connect` to npm (for cross-repo consumers like remy-sport) — currently workspace-only; add a dist build + publish task
-- [ ] Bump `cf-connectrpc-middleware` to connectrpc 0.6 (AFTER all Maps APIs covered over Connect RPC)
+- [x] connectrpc aligned with `cf-connectrpc-middleware` on 0.9 (joeblew999/google_maps#2)
 - [ ] (later) wire `cf-connectrpc-middleware` layers (cedar/tracing/…) once they stabilise
 - [x] **Key restrictions synced to all 8 services** — the existing fnox key was updated in place (`api-keys update`, key string + fnox unchanged); `secret:google`'s reuse path now runs `api-keys update …$api_targets` so the restrictions always track `GOOGLE_MAPS_SERVICES` (no re-mint needed when widening).
 - [~] Token/quota system (docs/TOKENS.md). DONE: reusable `TokenAuthLayer` (generic → gates BOTH CF worker AND native axum via `MAPS_TOKENS`; `test:connectrpc` proves both no-token→unauthenticated / valid→Google); Rust client sends its token (`MAPS_TOKEN`); `secret:maps-token` issuance; `gcloud:quota:open` for the daily ceiling. REMAINING: CF rate-limit binding + metrics (cf-binding = CF-only; native needs a tower rate-limiter). Middleware portability documented in CLOUDFLARE.md.

@@ -178,7 +178,9 @@ reqwest = { version = "0.13", optional = true, default-features = false }
 stream_throttle = { version = "0.5", optional = true }
 
 # Cloudflare Workers transport (wasm32). Enabled by the `worker` feature.
-worker = { version = "0.8", optional = true, features = ["http"] }
+# worker 0.8.7 needs Rust >= 1.91, so the `worker` feature does too; `rust-version`
+# above stays at upstream's MSRV for the default (non-worker) build.
+worker = { version = "0.8.7", optional = true, features = ["http"] }
 
 # HTTP Middleware
 anyhow = { version = "1.0", optional = true }

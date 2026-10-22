@@ -1,15 +1,15 @@
 //! Time Zone RPC: coordinates (+ optional unix timestamp) -> tz id/name/offsets.
 
-use connectrpc::{ConnectError, Response, ServiceResult};
+use connectrpc::{ConnectError, Response, ServiceRequest, ServiceResult};
 use google_maps::Client;
 use google_maps::types::LatLng;
 
 use super::exec_await;
-use crate::proto::maps::v1::{OwnedTimeZoneRequestView, TimeZoneResponse};
+use crate::proto::maps::v1::{TimeZoneRequest, TimeZoneResponse};
 
 pub(super) async fn time_zone(
     client: &Client,
-    request: OwnedTimeZoneRequestView,
+    request: ServiceRequest<'_, TimeZoneRequest>,
 ) -> ServiceResult<TimeZoneResponse> {
     let latlng = LatLng::try_from_f64(request.latitude, request.longitude)
         .map_err(|error| ConnectError::internal(error.to_string()))?;

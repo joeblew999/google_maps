@@ -1,15 +1,15 @@
 //! Directions RPC: origin + destination -> route summaries (first leg).
 
-use connectrpc::{ConnectError, Response, ServiceResult};
+use connectrpc::{ConnectError, Response, ServiceRequest, ServiceResult};
 use google_maps::Client;
 use google_maps::directions::request::location::Location;
 
 use super::exec_await;
-use crate::proto::maps::v1::{DirectionsResponse, OwnedDirectionsRequestView, Route};
+use crate::proto::maps::v1::{DirectionsRequest, DirectionsResponse, Route};
 
 pub(super) async fn directions(
     client: &Client,
-    request: OwnedDirectionsRequestView,
+    request: ServiceRequest<'_, DirectionsRequest>,
 ) -> ServiceResult<DirectionsResponse> {
     let response = exec_await!(client
         .directions(

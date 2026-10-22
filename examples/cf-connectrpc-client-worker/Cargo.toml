@@ -16,14 +16,17 @@ crate-type = ["cdylib"]
 [dependencies]
 # CLIENT role only — note: NO google_maps dependency.
 google-maps-connectrpc = { path = "../../crates/connectrpc", default-features = false, features = ["client"] }
-connectrpc         = { version = "0.6", default-features = false }
-connectrpc-workers = "0.3"
-worker             = { version = "0.8", features = ["http"] }
-worker-macros      = { version = "0.8", features = ["http"] }
+connectrpc         = { version = "0.9.1", default-features = false }
+connectrpc-workers = "0.6.0"
+worker             = { version = "0.8.7", features = ["http"] }
+worker-macros      = { version = "0.8.7", features = ["http"] }
 http               = "1"
 
 [profile.release]
 opt-level = "z"
 lto = true
 codegen-units = 1
-strip = true
+# Not `true`: full strip drops the wasm `target_features` section, so wasm-bindgen
+# can't see reference-types and worker-build 0.8.7's forced abort handler fails
+# ("externref table required for catch wrappers"). wasm-opt strips the rest.
+strip = "debuginfo"

@@ -1,19 +1,18 @@
 //! Geocoding RPCs: address -> coordinates, and coordinates -> addresses.
 
-use connectrpc::{ConnectError, Response, ServiceResult};
+use connectrpc::{ConnectError, Response, ServiceRequest, ServiceResult};
 use google_maps::Client;
 use google_maps::types::LatLng;
 use rust_decimal::prelude::ToPrimitive;
 
 use super::exec_await;
 use crate::proto::maps::v1::{
-    GeoResult, GeocodeResponse, OwnedGeocodeRequestView, OwnedReverseGeocodeRequestView,
-    ReverseGeocodeResponse,
+    GeoResult, GeocodeRequest, GeocodeResponse, ReverseGeocodeRequest, ReverseGeocodeResponse,
 };
 
 pub(super) async fn geocode(
     client: &Client,
-    request: OwnedGeocodeRequestView,
+    request: ServiceRequest<'_, GeocodeRequest>,
 ) -> ServiceResult<GeocodeResponse> {
     let response = exec_await!(client.geocoding().with_address(request.address).execute())
         .map_err(|error| ConnectError::internal(error.to_string()))?;
@@ -38,7 +37,7 @@ pub(super) async fn geocode(
 
 pub(super) async fn reverse_geocode(
     client: &Client,
-    request: OwnedReverseGeocodeRequestView,
+    request: ServiceRequest<'_, ReverseGeocodeRequest>,
 ) -> ServiceResult<ReverseGeocodeResponse> {
     let latlng = LatLng::try_from_f64(request.latitude, request.longitude)
         .map_err(|error| ConnectError::internal(error.to_string()))?;

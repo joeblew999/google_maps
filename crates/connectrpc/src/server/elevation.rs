@@ -1,16 +1,16 @@
 //! Elevation RPC: coordinates -> elevation (metres above sea level).
 
-use connectrpc::{ConnectError, Response, ServiceResult};
+use connectrpc::{ConnectError, Response, ServiceRequest, ServiceResult};
 use google_maps::Client;
 use google_maps::types::LatLng;
 use rust_decimal::prelude::ToPrimitive;
 
 use super::exec_await;
-use crate::proto::maps::v1::{ElevationResponse, ElevationResult, OwnedElevationRequestView};
+use crate::proto::maps::v1::{ElevationRequest, ElevationResponse, ElevationResult};
 
 pub(super) async fn elevation(
     client: &Client,
-    request: OwnedElevationRequestView,
+    request: ServiceRequest<'_, ElevationRequest>,
 ) -> ServiceResult<ElevationResponse> {
     let latlng = LatLng::try_from_f64(request.latitude, request.longitude)
         .map_err(|error| ConnectError::internal(error.to_string()))?;

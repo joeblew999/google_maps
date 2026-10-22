@@ -2,22 +2,21 @@
 //! and place photos. These share the slim `Place` mapping, so they live together
 //! (mirroring upstream's `src/places_new/`).
 
-use connectrpc::{ConnectError, Response, ServiceResult};
+use connectrpc::{ConnectError, Response, ServiceRequest, ServiceResult};
 use google_maps::Client;
 use google_maps::places_new::FieldMask;
 use rust_decimal::prelude::ToPrimitive;
 
 use super::exec_await;
 use crate::proto::maps::v1::{
-    OwnedPlaceDetailsRequestView, OwnedPlacePhotosRequestView, OwnedPlacesAutocompleteRequestView,
-    OwnedPlacesNearbyRequestView, OwnedTextSearchRequestView, Place as PbPlace,
-    PlaceDetailsResponse, PlacePhotosResponse, PlacesAutocompleteResponse, PlacesNearbyResponse,
-    Prediction, TextSearchResponse,
+    Place as PbPlace, PlaceDetailsRequest, PlaceDetailsResponse, PlacePhotosRequest,
+    PlacePhotosResponse, PlacesAutocompleteRequest, PlacesAutocompleteResponse, PlacesNearbyRequest,
+    PlacesNearbyResponse, Prediction, TextSearchRequest, TextSearchResponse,
 };
 
 pub(super) async fn text_search(
     client: &Client,
-    request: OwnedTextSearchRequestView,
+    request: ServiceRequest<'_, TextSearchRequest>,
 ) -> ServiceResult<TextSearchResponse> {
     let response = exec_await!(client
         .text_search(request.query)
@@ -32,7 +31,7 @@ pub(super) async fn text_search(
 
 pub(super) async fn autocomplete(
     client: &Client,
-    request: OwnedPlacesAutocompleteRequestView,
+    request: ServiceRequest<'_, PlacesAutocompleteRequest>,
 ) -> ServiceResult<PlacesAutocompleteResponse> {
     let response = exec_await!(client.autocomplete(request.input).execute())
         .map_err(|error| ConnectError::internal(error.to_string()))?;
@@ -52,7 +51,7 @@ pub(super) async fn autocomplete(
 
 pub(super) async fn nearby(
     client: &Client,
-    request: OwnedPlacesNearbyRequestView,
+    request: ServiceRequest<'_, PlacesNearbyRequest>,
 ) -> ServiceResult<PlacesNearbyResponse> {
     // (lat, lng, radius_metres) -> a circular location restriction.
     let builder = client
@@ -68,7 +67,7 @@ pub(super) async fn nearby(
 
 pub(super) async fn place_details(
     client: &Client,
-    request: OwnedPlaceDetailsRequestView,
+    request: ServiceRequest<'_, PlaceDetailsRequest>,
 ) -> ServiceResult<PlaceDetailsResponse> {
     let builder = client
         .place_details(request.place_id)
@@ -85,7 +84,7 @@ pub(super) async fn place_details(
 
 pub(super) async fn place_photos(
     client: &Client,
-    request: OwnedPlacePhotosRequestView,
+    request: ServiceRequest<'_, PlacePhotosRequest>,
 ) -> ServiceResult<PlacePhotosResponse> {
     let max_width = if request.max_width_px > 0 { request.max_width_px } else { 400 };
     let builder = client
